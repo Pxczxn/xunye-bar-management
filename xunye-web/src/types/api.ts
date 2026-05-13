@@ -143,3 +143,168 @@ export interface ProductBrandFormData {
   name: string;
   sort: number;
 }
+
+export interface TableArea {
+  id: number;
+  name: string;
+  sort: number;
+  status: number;
+  createdAt: string;
+}
+
+export interface TableAreaSaveParams {
+  name: string;
+  sort: number;
+  status: number;
+}
+
+export interface BarTable {
+  id: number;
+  areaId: number;
+  areaName: string;
+  name: string;
+  capacity: number;
+  status: 'EMPTY' | 'USING' | 'CLEANING' | 'DISABLED';
+  createdAt: string;
+}
+
+export interface BarTablePageResult {
+  records: BarTable[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}
+
+export interface BarTableQueryParams {
+  pageNum: number;
+  pageSize: number;
+  areaId?: number;
+  status?: string;
+  keyword?: string;
+}
+
+export interface BarTableSaveParams {
+  areaId: number;
+  name: string;
+  capacity: number;
+  status: string;
+}
+
+export interface BarTableStatusParams {
+  status: string;
+}
+
+export interface OrderItemCreateParams {
+  productId: number;
+  quantity: number;
+}
+
+export interface OrderCreateParams {
+  tableId: number;
+  items: OrderItemCreateParams[];
+  remark?: string;
+}
+
+export interface OrderItemVO {
+  id: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  price: number;
+  amount: number;
+}
+
+export interface OrderPageVO {
+  id: number;
+  orderNo: string;
+  tableId: number;
+  tableName: string;
+  totalAmount: number;
+  status: string;
+  serveStatus?: string;
+  paymentMethod: string | null;
+  source: string | null;
+  remark: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  cancelledAt: string | null;
+  items?: OrderItemVO[];
+}
+
+export interface OrderQueryParams {
+  pageNum: number;
+  pageSize: number;
+  orderNo?: string;
+  tableName?: string;
+  status?: string;
+  serveStatus?: string;
+  source?: string;
+  excludeStatus?: string;
+}
+
+export interface OrderPageResult {
+  records: OrderPageVO[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}
+
+export interface OrderPayParams {
+  paymentMethod: 'WECHAT' | 'ALIPAY' | 'CASH';
+}
+
+export interface UserInfo {
+  id: number;
+  username: string;
+  nickname: string;
+  role: 'BOSS' | 'MANAGER' | 'STAFF';
+}
+
+export interface LoginParams {
+  username: string;
+  password: string;
+}
+
+export interface LoginResult {
+  token: string;
+  user: UserInfo;
+}
+
+export interface StaffItem {
+  id: number;
+  username: string;
+  nickname: string;
+  role: 'BOSS' | 'MANAGER' | 'STAFF';
+  status: 0 | 1;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+export interface StaffPageResult {
+  records: StaffItem[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}
+
+export interface StaffQueryParams {
+  pageNum: number;
+  pageSize: number;
+  keyword?: string;
+  role?: string;
+  status?: string;
+}
+
+export interface StaffCreateParams {
+  username: string;
+  password: string;
+  nickname: string;
+  role: 'BOSS' | 'MANAGER' | 'STAFF';
+  status: 0 | 1;
+}
+
+export interface StaffUpdateParams {
+  nickname: string;
+  role: 'BOSS' | 'MANAGER' | 'STAFF';
+  status: 0 | 1;
+}

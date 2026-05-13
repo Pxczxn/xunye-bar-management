@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xunye.admin.mapper.OrderInfoMapper">
+
+    <select id="selectSalesTrend" resultType="java.util.Map">
+        <![CDATA[
+        SELECT
+            DATE_FORMAT(paid_at, '%m-%d') AS `date`,
+            IFNULL(SUM(total_amount), 0) AS revenue,
+            COUNT(*) AS orderCount
+        FROM order_info
+        WHERE deleted = 0
+            AND paid_at IS NOT NULL
+            AND DATE(paid_at) >= #{startDate}
+            AND DATE(paid_at) <= #{endDate}
+        GROUP BY DATE_FORMAT(paid_at, '%m-%d')
+        ]]>
+    </select>
+
+    <select id="selectPaymentMethodStats" resultType="java.util.Map">
+        SELECT
+            payment_method AS paymentMethod,
+            IFNULL(SUM(total_amount), 0) AS amount,
+            COUNT(*) AS count
+        FROM order_info
+        WHERE deleted = 0
+            AND paid_at IS NOT NULL
+            AND payment_method IS NOT NULL
+        GROUP BY payment_method
+    </select>
+
+</mapper>

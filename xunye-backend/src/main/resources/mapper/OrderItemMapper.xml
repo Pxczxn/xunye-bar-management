@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xunye.admin.mapper.OrderItemMapper">
+
+    <select id="selectHotProducts" resultType="com.xunye.admin.vo.HotProductVO">
+        SELECT
+            oi.product_name AS productName,
+            SUM(oi.quantity) AS salesCount,
+            SUM(oi.amount) AS salesAmount
+        FROM order_item oi
+        INNER JOIN order_info o ON oi.order_id = o.id AND o.deleted = 0
+        WHERE o.status = 'PAID'
+        GROUP BY oi.product_id, oi.product_name
+        ORDER BY salesCount DESC
+        LIMIT 5
+    </select>
+
+</mapper>

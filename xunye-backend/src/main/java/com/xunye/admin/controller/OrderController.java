@@ -1,12 +1,17 @@
 package com.xunye.admin.controller;
 
+import com.xunye.admin.annotation.RequireRole;
 import com.xunye.admin.common.ApiResponse;
+import com.xunye.admin.dto.OrderCreateDTO;
+import com.xunye.admin.dto.OrderPayDTO;
+import com.xunye.admin.dto.OrderQueryDTO;
 import com.xunye.admin.service.OrderService;
+import com.xunye.admin.vo.OrderPageVO;
 import com.xunye.admin.vo.OrderRecentVO;
+import com.xunye.admin.vo.PageResult;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -16,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/orders")
 @RequiredArgsConstructor
+@RequireRole({"BOSS", "MANAGER", "STAFF"})
 public class OrderController {
 
     private final OrderService orderService;
@@ -26,6 +32,60 @@ public class OrderController {
     @GetMapping("/recent")
     public ApiResponse<List<OrderRecentVO>> getRecentOrders() {
         return ApiResponse.success(orderService.getRecentOrders());
+    }
+
+    /**
+     * 创建订单
+     */
+    @PostMapping
+    public ApiResponse<Long> createOrder(@Valid @RequestBody OrderCreateDTO dto) {
+        return ApiResponse.success(orderService.createOrder(dto));
+    }
+
+    /**
+     * 分页查询订单
+     */
+    @GetMapping
+    public ApiResponse<PageResult<OrderPageVO>> getOrderPage(OrderQueryDTO queryDTO) {
+        return ApiResponse.success(orderService.getOrderPage(queryDTO));
+    }
+
+    /**
+     * 查询订单详情
+     */
+    @GetMapping("/{id}")
+    public ApiResponse<OrderPageVO> getOrderDetail(@PathVariable Long id) {
+        return ApiResponse.success(orderService.getOrderDetail(id));
+    }
+
+    /**
+     * 支付订单
+     */
+    @PatchMapping("/{id}/pay")
+    public ApiResponse<Void> payOrder(@PathVariable Long id, @Valid @RequestBody OrderPayDTO dto) {
+        orderService.payOrder(id, dto);
+        return ApiResponse.success();
+    }
+
+    /**
+     * 取消订单
+     */
+    @PatchMapping("/{id}/cancel")
+    public ApiResponse<Void> cancelOrder(@PathVariable Long id) {
+        orderService.cancelOrder(id);
+        return ApiResponse.success(null);
+    }
+
+    @PatchMapping("/{id}/making")
+    public ApiResponse<Void> startMaking(@PathVariable Long id) {
+        orderService.startMaking(id);
+        return ApiResponse.success(null);
+    }
+
+    @PatchMapping("/{id}/finish")
+    public ApiResponse<Void> finishOrder(@PathVariable Long id) {
+        orderService.finishOrder(id);
+        return ApiResponse.success(null);
     }
 
 }

@@ -1,0 +1,18 @@
+<view class="home">
+  <view class="brand">
+    <view class="brand-ring">
+      <text class="brand-name">{{appName}}</text>
+    </view>
+    <text class="brand-en">{{slogan}}</text>
+    <text class="brand-tagline">精酿 · 鸡尾酒 · 威士忌</text>
+  </view>
+
+  <view wx:if="{{tableName}}" class="table-chip">
+    <view class="table-chip-dot"></view>
+    <text class="table-chip-text">{{tableName}}</text>
+  </view>
+
+  <view class="action">
+    <button class="btn-start" bindtap="onStartOrder">开始点单</button>
+  </view>
+</view>

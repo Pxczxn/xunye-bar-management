@@ -1,63 +1,161 @@
 package com.xunye.admin.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.xunye.admin.entity.OrderInfo;
+import com.xunye.admin.entity.Product;
+import com.xunye.admin.mapper.OrderInfoMapper;
+import com.xunye.admin.mapper.OrderItemMapper;
+import com.xunye.admin.mapper.ProductMapper;
 import com.xunye.admin.service.DashboardService;
 import com.xunye.admin.vo.DashboardSummaryVO;
 import com.xunye.admin.vo.HotProductVO;
 import com.xunye.admin.vo.PaymentMethodVO;
 import com.xunye.admin.vo.SalesTrendVO;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
-/**
- * 仪表盘 Service 实现类（第一阶段：返回固定演示数据）
- */
 @Service
+@RequiredArgsConstructor
 public class DashboardServiceImpl implements DashboardService {
+
+    private final OrderInfoMapper orderInfoMapper;
+    private final OrderItemMapper orderItemMapper;
+    private final ProductMapper productMapper;
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    private static final Map<String, String> PAYMENT_METHOD_TEXT = Map.of(
+            "WECHAT", "微信",
+            "ALIPAY", "支付宝",
+            "CASH", "现金"
+    );
 
     @Override
     public DashboardSummaryVO getSummary() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime todayStart = today.atStartOfDay();
+        LocalDateTime todayEnd = today.atTime(LocalTime.MAX);
+
+        LambdaQueryWrapper<OrderInfo> paidWrapper = new LambdaQueryWrapper<>();
+        paidWrapper.in(OrderInfo::getStatus, "PAID", "FINISHED")
+                .eq(OrderInfo::getDeleted, 0)
+                .isNotNull(OrderInfo::getPaidAt)
+                .ge(OrderInfo::getPaidAt, todayStart)
+                .le(OrderInfo::getPaidAt, todayEnd);
+        List<OrderInfo> paidOrders = orderInfoMapper.selectList(paidWrapper);
+        BigDecimal todayRevenue = paidOrders.stream()
+                .map(OrderInfo::getTotalAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        int paidCount = paidOrders.size();
+
+        LambdaQueryWrapper<OrderInfo> countWrapper = new LambdaQueryWrapper<>();
+        countWrapper.eq(OrderInfo::getDeleted, 0)
+                .ge(OrderInfo::getCreatedAt, todayStart)
+                .le(OrderInfo::getCreatedAt, todayEnd);
+        Long todayOrderCount = orderInfoMapper.selectCount(countWrapper);
+
+        BigDecimal avgValue = paidCount > 0
+                ? todayRevenue.divide(BigDecimal.valueOf(paidCount), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        LambdaQueryWrapper<Product> warningWrapper = new LambdaQueryWrapper<>();
+        warningWrapper.eq(Product::getDeleted, 0)
+                .gt(Product::getSafeStock, 0)
+                .apply("stock < safe_stock");
+        Long warningCount = productMapper.selectCount(warningWrapper);
+
         DashboardSummaryVO vo = new DashboardSummaryVO();
-        vo.setTodayRevenue(new BigDecimal("3286.00"));
-        vo.setTodayOrderCount(42);
-        vo.setAverageOrderValue(new BigDecimal("78.24"));
-        vo.setInventoryWarningCount(6);
+        vo.setTodayRevenue(todayRevenue);
+        vo.setTodayOrderCount(todayOrderCount.intValue());
+        vo.setAverageOrderValue(avgValue);
+        vo.setInventoryWarningCount(warningCount.intValue());
         return vo;
     }
 
     @Override
     public List<SalesTrendVO> getSalesTrend() {
-        return Arrays.asList(
-                new SalesTrendVO("04-26", new BigDecimal("2180.00"), 26),
-                new SalesTrendVO("04-27", new BigDecimal("2860.00"), 34),
-                new SalesTrendVO("04-28", new BigDecimal("2468.00"), 29),
-                new SalesTrendVO("04-29", new BigDecimal("3190.00"), 38),
-                new SalesTrendVO("04-30", new BigDecimal("4280.00"), 51),
-                new SalesTrendVO("05-01", new BigDecimal("3680.00"), 44),
-                new SalesTrendVO("05-02", new BigDecimal("3286.00"), 42)
+        LocalDate today = LocalDate.now();
+        LocalDate startDate = today.minusDays(6);
+
+        List<Map<String, Object>> dbResults = orderInfoMapper.selectSalesTrend(
+                startDate.format(DATE_FORMATTER),
+                today.format(DATE_FORMATTER)
         );
+
+        Map<String, Map<String, Object>> dbMap = dbResults.stream()
+                .collect(Collectors.toMap(
+                        m -> (String) m.get("date"),
+                        m -> m,
+                        (a, b) -> a
+                ));
+
+        List<SalesTrendVO> result = new ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            LocalDate date = today.minusDays(i);
+            String dateStr = date.format(DateTimeFormatter.ofPattern("MM-dd"));
+            Map<String, Object> data = dbMap.get(dateStr);
+            BigDecimal revenue = BigDecimal.ZERO;
+            int orderCount = 0;
+            if (data != null) {
+                Object revenueObj = data.get("revenue");
+                if (revenueObj != null) {
+                    revenue = new BigDecimal(revenueObj.toString());
+                }
+                Object countObj = data.get("orderCount");
+                if (countObj != null) {
+                    orderCount = ((Number) countObj).intValue();
+                }
+            }
+            result.add(new SalesTrendVO(dateStr, revenue, orderCount));
+        }
+        return result;
     }
 
     @Override
     public List<HotProductVO> getHotProducts() {
-        return Arrays.asList(
-                new HotProductVO("长岛冰茶", 28, new BigDecimal("1680.00")),
-                new HotProductVO("百威啤酒", 24, new BigDecimal("720.00")),
-                new HotProductVO("莫吉托", 19, new BigDecimal("1140.00")),
-                new HotProductVO("野格炸弹", 16, new BigDecimal("960.00")),
-                new HotProductVO("威士忌可乐", 13, new BigDecimal("780.00"))
-        );
+        return orderItemMapper.selectHotProducts();
     }
 
     @Override
     public List<PaymentMethodVO> getPaymentMethods() {
-        return Arrays.asList(
-                new PaymentMethodVO("微信", new BigDecimal("1800.00"), 54.8),
-                new PaymentMethodVO("支付宝", new BigDecimal("986.00"), 30.0),
-                new PaymentMethodVO("现金", new BigDecimal("500.00"), 15.2)
-        );
+        List<Map<String, Object>> dbResults = orderInfoMapper.selectPaymentMethodStats();
+        if (dbResults.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        BigDecimal totalAmount = dbResults.stream()
+                .map(m -> {
+                    Object obj = m.get("amount");
+                    return obj != null ? new BigDecimal(obj.toString()) : BigDecimal.ZERO;
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return dbResults.stream().map(m -> {
+            String method = (String) m.get("paymentMethod");
+            Object amountObj = m.get("amount");
+            BigDecimal amount = amountObj != null ? new BigDecimal(amountObj.toString()) : BigDecimal.ZERO;
+            double percent = totalAmount.compareTo(BigDecimal.ZERO) > 0
+                    ? amount.multiply(BigDecimal.valueOf(100))
+                            .divide(totalAmount, 1, RoundingMode.HALF_UP)
+                            .doubleValue()
+                    : 0.0;
+            String methodName = PAYMENT_METHOD_TEXT.getOrDefault(method, method);
+            return new PaymentMethodVO(methodName, amount, percent);
+        }).collect(Collectors.toList());
     }
 
 }

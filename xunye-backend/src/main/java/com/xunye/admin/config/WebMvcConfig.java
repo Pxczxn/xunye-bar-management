@@ -1,6 +1,8 @@
 package com.xunye.admin.config;
 
+import com.xunye.admin.interceptor.AuthInterceptor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -10,16 +12,30 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
+    private final AuthInterceptor authInterceptor;
+
+    public WebMvcConfig(AuthInterceptor authInterceptor) {
+        this.authInterceptor = authInterceptor;
+    }
+
     /**
      * 配置静态资源处理器
-     * 忽略 favicon.ico 请求，避免 NoResourceFoundException
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 忽略 favicon.ico 请求
         registry.addResourceHandler("/favicon.ico")
                 .addResourceLocations("classpath:/static/")
                 .setCacheControl(org.springframework.http.CacheControl.noStore());
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(authInterceptor)
+                .addPathPatterns("/api/admin/**")
+                .excludePathPatterns(
+                        "/api/admin/auth/login",
+                        "/api/admin/health"
+                );
     }
 
 }

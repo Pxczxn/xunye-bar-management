@@ -1,5 +1,6 @@
 package com.xunye.admin.controller;
 
+import com.xunye.admin.annotation.RequireRole;
 import com.xunye.admin.common.ApiResponse;
 import com.xunye.admin.service.DashboardService;
 import com.xunye.admin.vo.DashboardSummaryVO;
@@ -19,6 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/dashboard")
 @RequiredArgsConstructor
+@RequireRole({"BOSS", "MANAGER"})
 public class DashboardController {
 
     private final DashboardService dashboardService;

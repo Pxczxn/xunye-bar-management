@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
@@ -6,31 +6,70 @@ import Products from '../pages/Products';
 import Orders from '../pages/Orders';
 import Inventory from '../pages/Inventory';
 import Categories from '../pages/Categories';
+import Tables from '../pages/Tables';
+import Pos from '../pages/Pos';
 import Settings from '../pages/Settings';
-import Placeholder from '../pages/Placeholder';
+import Staff from '../pages/Staff';
+
+function getRole(): string {
+  try { return JSON.parse(localStorage.getItem('user') || '{}').role || ''; } catch { return ''; }
+}
+
+function defaultHome(role: string) {
+  return role === 'STAFF' ? '/orders' : '/dashboard';
+}
+
+function RequireAuth() {
+  const token = localStorage.getItem('token');
+  if (!token) return <Navigate to="/login" replace />;
+  return <Outlet />;
+}
+
+function GuestOnly() {
+  const token = localStorage.getItem('token');
+  if (token) return <Navigate to={defaultHome(getRole())} replace />;
+  return <Outlet />;
+}
+
+function RoleRoute({ roles }: { roles: string[] }) {
+  const role = getRole();
+  if (roles.includes(role)) return <Outlet />;
+  return <Navigate to={defaultHome(role)} replace />;
+}
 
 const router = createBrowserRouter([
   {
-    path: '/login',
-    element: <Login />,
-  },
-  {
-    path: '/',
-    element: <AdminLayout />,
+    element: <GuestOnly />,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard', element: <Dashboard /> },
-      { path: 'products', element: <Products /> },
-      { path: 'orders', element: <Orders /> },
-      { path: 'inventory', element: <Inventory /> },
-      { path: 'pos', element: <Placeholder title="吧台点单" /> },
-      { path: 'categories', element: <Categories /> },
-      { path: 'tables', element: <Placeholder title="桌台区域" /> },
-      { path: 'employees', element: <Placeholder title="员工账号" /> },
-      { path: 'settings', element: <Settings /> },
+      { path: '/login', element: <Login /> },
     ],
   },
-  { path: '*', element: <Navigate to="/dashboard" replace /> },
+  {
+    element: <RequireAuth />,
+    children: [
+      {
+        path: '/',
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <Navigate to={defaultHome(getRole())} replace /> },
+          { element: <RoleRoute roles={['BOSS', 'MANAGER']} />, children: [
+            { path: 'dashboard', element: <Dashboard /> },
+            { path: 'products', element: <Products /> },
+            { path: 'inventory', element: <Inventory /> },
+            { path: 'categories', element: <Categories /> },
+          ]},
+          { element: <RoleRoute roles={['BOSS']} />, children: [
+            { path: 'employees', element: <Staff /> },
+            { path: 'settings', element: <Settings /> },
+          ]},
+          { path: 'orders', element: <Orders /> },
+          { path: 'pos', element: <Pos /> },
+          { path: 'tables', element: <Tables /> },
+        ],
+      },
+    ],
+  },
+  { path: '*', element: <Navigate to={defaultHome(getRole())} replace /> },
 ]);
 
 export default router;

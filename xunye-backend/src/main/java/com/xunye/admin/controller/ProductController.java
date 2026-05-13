@@ -1,5 +1,6 @@
 package com.xunye.admin.controller;
 
+import com.xunye.admin.annotation.RequireRole;
 import com.xunye.admin.common.ApiResponse;
 import com.xunye.admin.dto.ProductQueryDTO;
 import com.xunye.admin.dto.ProductSaveDTO;
@@ -20,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/products")
 @RequiredArgsConstructor
+@RequireRole({"BOSS", "MANAGER"})
 public class ProductController {
 
     private final ProductService productService;

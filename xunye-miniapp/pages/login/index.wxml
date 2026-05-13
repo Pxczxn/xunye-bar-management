@@ -1,0 +1,13 @@
+<view class="login-page">
+  <view class="brand">
+    <text class="brand-main">寻野</text>
+    <text class="brand-sub">XUNYE BAR</text>
+  </view>
+
+  <view class="login-area">
+    <view class="login-tip text-sub">请授权登录以继续</view>
+    <button class="login-btn" disabled="{{loading}}" bindtap="onLogin">
+      {{loading ? '登录中...' : '一键登录'}}
+    </button>
+  </view>
+</view>

@@ -1,0 +1,19 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/menu/index",
+    "pages/cart/index",
+    "pages/payment/index",
+    "pages/order-detail/index",
+    "pages/login/index",
+    "pages/table-select/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#0B0B0F",
+    "navigationBarTitleText": "寻野",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0B0B0F",
+    "backgroundTextStyle": "light"
+  },
+  "sitemapLocation": "sitemap.json"
+}

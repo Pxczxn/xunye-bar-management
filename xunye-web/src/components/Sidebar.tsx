@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Coffee,
@@ -12,19 +12,37 @@ import {
 } from 'lucide-react';
 
 const MENU_ITEMS = [
-  { label: '营业看板', sub: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { label: '吧台点单', sub: 'POS', path: '/pos', icon: Coffee },
-  { label: '订单流水', sub: 'Orders', path: '/orders', icon: Receipt },
-  { label: '酒水管理', sub: 'Products', path: '/products', icon: Wine },
-  { label: '商品分类', sub: 'Categories', path: '/categories', icon: Tags },
-  { label: '库存预警', sub: 'Inventory', path: '/inventory', icon: Archive },
-  { label: '桌台区域', sub: 'Tables', path: '/tables', icon: LayoutGrid },
-  { label: '员工账号', sub: 'Staff', path: '/employees', icon: Users },
-  { label: '系统设置', sub: 'Settings', path: '/settings', icon: Settings },
+  { label: '营业看板', sub: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['BOSS', 'MANAGER'] },
+  { label: '吧台点单', sub: 'POS', path: '/pos', icon: Coffee, roles: ['BOSS', 'MANAGER', 'STAFF'] },
+  { label: '订单流水', sub: 'Orders', path: '/orders', icon: Receipt, roles: ['BOSS', 'MANAGER', 'STAFF'] },
+  { label: '酒水管理', sub: 'Products', path: '/products', icon: Wine, roles: ['BOSS', 'MANAGER'] },
+  { label: '商品分类', sub: 'Categories', path: '/categories', icon: Tags, roles: ['BOSS', 'MANAGER'] },
+  { label: '库存预警', sub: 'Inventory', path: '/inventory', icon: Archive, roles: ['BOSS', 'MANAGER'] },
+  { label: '桌台区域', sub: 'Tables', path: '/tables', icon: LayoutGrid, roles: ['BOSS', 'MANAGER', 'STAFF'] },
+  { label: '员工账号', sub: 'Staff', path: '/employees', icon: Users, roles: ['BOSS'] },
+  { label: '系统设置', sub: 'Settings', path: '/settings', icon: Settings, roles: ['BOSS'] },
 ];
+
+function getUser() {
+  try {
+    return JSON.parse(localStorage.getItem('user') || '{}');
+  } catch {
+    return {};
+  }
+}
 
 export function Sidebar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const user = getUser();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login', { replace: true });
+  };
+
+  const avatarChar = (user.nickname || 'A').charAt(0);
 
   return (
     <aside className="w-[260px] bg-sidebar-bg border-r border-border-dark flex flex-col h-screen fixed left-0 top-0">
@@ -41,7 +59,7 @@ export function Sidebar() {
       {/* 菜单区 */}
       <nav className="flex-1 overflow-y-auto px-3 py-2 hide-scrollbar">
         <div className="space-y-0.5">
-          {MENU_ITEMS.map((item) => {
+          {MENU_ITEMS.filter(item => item.roles.includes(user.role || 'BOSS')).map((item) => {
             const isActive =
               pathname === item.path || pathname.startsWith(item.path + '/');
             const Icon = item.icon;
@@ -108,17 +126,17 @@ export function Sidebar() {
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full border border-border-dark/50 p-0.5 shrink-0">
             <div className="w-full h-full rounded-full bg-brand-gold/20 flex items-center justify-center">
-              <span className="text-brand-gold text-[10px] font-serif italic">A</span>
+              <span className="text-brand-gold text-[10px] font-serif italic">{avatarChar}</span>
             </div>
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-medium text-text-main tracking-wide">Admin</p>
-            <Link
-              to="/login"
-              className="text-[10px] text-text-weak uppercase tracking-widest hover:text-brand-gold transition-colors"
+            <p className="text-xs font-medium text-text-main tracking-wide">{user.nickname || 'Admin'}</p>
+            <button
+              onClick={handleLogout}
+              className="text-[10px] text-text-weak uppercase tracking-widest hover:text-brand-gold transition-colors bg-transparent border-none cursor-pointer p-0"
             >
               退出登录
-            </Link>
+            </button>
           </div>
         </div>
       </div>

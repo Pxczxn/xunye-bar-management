@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.stream.Collectors;
 
@@ -51,6 +52,14 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("; "));
         log.error("参数校验失败：{}", message);
         return ApiResponse.error(400, message);
+    }
+
+    /**
+     * 处理参数类型转换异常（如传入 "null" 字符串给 Long 类型）
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ApiResponse<Void> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException e) {
+        return ApiResponse.error(400, "参数格式错误：" + e.getName());
     }
 
     /**

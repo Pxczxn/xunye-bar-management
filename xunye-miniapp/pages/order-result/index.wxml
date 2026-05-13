@@ -1,0 +1,9 @@
+<view class="result-page">
+  <view class="result-icon">✓</view>
+  <view class="result-title">下单成功</view>
+  <view class="result-sub text-sub">请从支付页完成支付</view>
+  <view class="btn-group">
+    <button class="btn-primary" bindtap="onViewDetail">查看订单状态</button>
+    <button class="btn-outline" bindtap="onBackMenu">返回菜单</button>
+  </view>
+</view>

@@ -1,5 +1,6 @@
 package com.xunye.admin.controller;
 
+import com.xunye.admin.annotation.RequireRole;
 import com.xunye.admin.common.ApiResponse;
 import com.xunye.admin.dto.InventoryAdjustDTO;
 import com.xunye.admin.service.InventoryService;
@@ -14,6 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/inventory")
 @RequiredArgsConstructor
+@RequireRole({"BOSS", "MANAGER"})
 public class InventoryController {
 
     private final InventoryService inventoryService;

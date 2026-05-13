@@ -36,6 +36,10 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
+# 支付配置
+payment:
+  provider: mock  # mock=开发环境模拟支付 | wechat=微信支付（需实现 WechatPaymentProvider）
+
 # 日志配置
 logging:
   level:

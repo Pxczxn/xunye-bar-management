@@ -1,0 +1,34 @@
+<view class="pay-page">
+  <view class="pay-header">
+    <text class="pay-header-main">确认支付</text>
+    <text class="pay-header-sub">PAYMENT</text>
+  </view>
+
+  <view class="amount-hero">
+    <text class="amount-label">应付金额</text>
+    <text class="amount-value"><text class="amount-sym">¥</text>{{totalAmount}}</text>
+  </view>
+
+  <view class="info-card">
+    <view class="info-row">
+      <text class="info-label">桌台</text>
+      <text class="info-value">{{tableName}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">订单号</text>
+      <text class="info-value">{{orderNo}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">支付方式</text>
+      <text class="info-value">微信支付</text>
+    </view>
+  </view>
+
+  <button class="pay-btn" bindtap="onPay" disabled="{{paying}}">
+    {{paying ? '支付中...' : '立即支付'}}
+  </button>
+  <button class="refresh-btn" bindtap="onRefreshStatus" disabled="{{refreshing}}">
+    {{refreshing ? '刷新中...' : '我已支付，刷新状态'}}
+  </button>
+  <text class="pay-note">支付成功后服务员将送至您的桌台</text>
+</view>
