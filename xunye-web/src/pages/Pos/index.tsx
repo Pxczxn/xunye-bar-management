@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Input, message } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { getTablePage } from '@/api/table';
 import { getProductPage } from '@/api/product';
-import { createOrder } from '@/api/order';
+import { createOrder, payOrder } from '@/api/order';
 import type { BarTable, ProductItem } from '@/types/api';
 import {
   Search,
@@ -26,6 +27,11 @@ interface CartItem {
   unit: string;
 }
 
+interface LastOrder {
+  id: number;
+  paid: boolean;
+}
+
 const TABLE_STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string }> = {
   EMPTY: { label: '空闲', color: 'text-success', bg: 'bg-success/10', border: 'border-success/30' },
   USING: { label: '使用中', color: 'text-danger', bg: 'bg-danger/10', border: 'border-danger/30' },
@@ -33,6 +39,7 @@ const TABLE_STATUS_MAP: Record<string, { label: string; color: string; bg: strin
 };
 
 export default function PosPage() {
+  const navigate = useNavigate();
   const [tables, setTables] = useState<BarTable[]>([]);
   const [tablesLoading, setTablesLoading] = useState(false);
   const [selectedTable, setSelectedTable] = useState<BarTable | null>(null);
@@ -42,7 +49,10 @@ export default function PosPage() {
   const [searchKeyword, setSearchKeyword] = useState('');
 
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [remark, setRemark] = useState('');
+  const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'WECHAT' | 'ALIPAY' | 'CASH'>('WECHAT');
 
   const fetchTables = useCallback(async () => {
     setTablesLoading(true);
@@ -132,14 +142,17 @@ export default function PosPage() {
     setCart((prev) => prev.filter((item) => item.productId !== productId));
   };
 
-  const clearCart = () => setCart([]);
+  const clearCart = () => {
+    setCart([]);
+    setRemark('');
+  };
 
   const totalAmount = useMemo(
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cart]
   );
 
-  const handleSubmitOrder = async () => {
+  const handleSubmitOrder = async (payImmediately = false) => {
     if (!selectedTable) {
       message.warning('请先选择桌台');
       return;
@@ -150,15 +163,23 @@ export default function PosPage() {
     }
     setSubmitting(true);
     try {
-      await createOrder({
+      const orderId = await createOrder({
         tableId: selectedTable.id,
+        remark: remark.trim() || undefined,
         items: cart.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
         })),
       });
-      message.success('下单成功');
+      if (payImmediately) {
+        await payOrder(orderId, { paymentMethod });
+        message.success('下单并收款成功');
+      } else {
+        message.success('下单成功，订单已挂起待收款');
+      }
       setCart([]);
+      setRemark('');
+      setLastOrder({ id: orderId, paid: payImmediately });
       setSelectedTable(null);
       fetchTables();
       fetchProducts();
@@ -342,6 +363,45 @@ export default function PosPage() {
             </div>
           </div>
 
+          {lastOrder && (
+            <div className="mx-3 mt-3 rounded-xl border border-brand-gold/30 bg-brand-gold/10 p-3 text-xs">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-brand-gold">
+                    {lastOrder.paid ? '订单已收款' : '订单已挂起'}
+                  </p>
+                  <p className="mt-1 text-text-sub">
+                    订单 #{lastOrder.id} {lastOrder.paid ? '已进入出品队列' : '仍需在订单流水中完成收款'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setLastOrder(null)}
+                  className="text-text-weak transition-colors hover:text-text-main"
+                  type="button"
+                >
+                  继续点单
+                </button>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => navigate('/orders')}
+                  className="rounded-lg border border-border-dark px-3 py-2 text-text-sub transition-colors hover:border-brand-gold/40 hover:text-brand-gold"
+                  type="button"
+                >
+                  查看订单流水
+                </button>
+                <button
+                  onClick={() => navigate('/kitchen')}
+                  className="rounded-lg bg-brand-gold px-3 py-2 font-semibold text-page-bg transition-colors hover:bg-brand-gold/90 disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={!lastOrder.paid}
+                  type="button"
+                >
+                  去出品看板
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {cart.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-text-weak">
@@ -394,14 +454,43 @@ export default function PosPage() {
           </div>
 
           <div className="p-4 border-t border-border-dark shrink-0 space-y-3">
+            <Input.TextArea
+              value={remark}
+              onChange={(e) => setRemark(e.target.value)}
+              placeholder="订单备注，例如少冰、先上、客人要求..."
+              autoSize={{ minRows: 2, maxRows: 3 }}
+              maxLength={120}
+              showCount
+              className="!bg-sidebar-bg !border-border-dark !text-text-main !placeholder-text-weak"
+            />
             <div className="flex items-center justify-between">
               <span className="text-sm text-text-sub">合计</span>
               <span className="text-lg font-sans font-bold text-brand-gold">
                 ¥{totalAmount.toFixed(2)}
               </span>
             </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { key: 'WECHAT' as const, label: '微信' },
+                { key: 'ALIPAY' as const, label: '支付宝' },
+                { key: 'CASH' as const, label: '现金' },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => setPaymentMethod(item.key)}
+                  className={`py-2 rounded-lg border text-xs font-medium transition-colors ${
+                    paymentMethod === item.key
+                      ? 'border-brand-gold bg-brand-gold/10 text-brand-gold'
+                      : 'border-border-dark text-text-sub hover:border-brand-gold/40 hover:text-text-main'
+                  }`}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
             <button
-              onClick={handleSubmitOrder}
+              onClick={() => handleSubmitOrder(true)}
               disabled={submitting || cart.length === 0 || !selectedTable}
               className="w-full flex items-center justify-center gap-2 bg-brand-gold text-page-bg px-4 py-3 rounded-lg font-semibold text-sm hover:bg-brand-gold/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors tracking-wider uppercase"
             >
@@ -413,9 +502,17 @@ export default function PosPage() {
               ) : (
                 <>
                   <Send size={16} />
-                  <span>提交订单</span>
+                  <span>下单并收款</span>
                 </>
               )}
+            </button>
+            <button
+              onClick={() => handleSubmitOrder(false)}
+              disabled={submitting || cart.length === 0 || !selectedTable}
+              className="w-full flex items-center justify-center gap-2 border border-border-dark text-text-sub px-4 py-2.5 rounded-lg font-medium text-sm hover:border-brand-gold/50 hover:text-text-main disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              type="button"
+            >
+              仅下单，稍后收款
             </button>
           </div>
         </div>

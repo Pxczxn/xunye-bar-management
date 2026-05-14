@@ -176,6 +176,41 @@ public class OrderControllerTest {
     }
 
     @Test @Order(6)
+    @DisplayName("TC-06: Order page filters source, serveStatus and excludeStatus together")
+    public void testGetOrderPageWithSourceServeStatusAndExcludeStatus() throws Exception {
+        resetTestData();
+        Long paidPendingOrderId = createTestOrder(TABLE_ID_1, 1);
+
+        OrderPayDTO payDTO = new OrderPayDTO();
+        payDTO.setPaymentMethod("WECHAT");
+        mockMvc.perform(patch("/api/admin/orders/{id}/pay", paidPendingOrderId)
+                .header("Authorization", "Bearer " + getToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(payDTO)))
+                .andExpect(status().isOk());
+
+        Long cancelledOrderId = createTestOrder(TABLE_ID_2, 1);
+        mockMvc.perform(patch("/api/admin/orders/{id}/cancel", cancelledOrderId)
+                .header("Authorization", "Bearer " + getToken()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/orders")
+                .header("Authorization", "Bearer " + getToken())
+                .param("pageNum", "1")
+                .param("pageSize", "10")
+                .param("source", "ADMIN_POS")
+                .param("serveStatus", "PENDING")
+                .param("excludeStatus", "CANCELLED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.records[0].id").value(paidPendingOrderId))
+                .andExpect(jsonPath("$.data.records[0].source").value("ADMIN_POS"))
+                .andExpect(jsonPath("$.data.records[0].serveStatus").value("PENDING"))
+                .andExpect(jsonPath("$.data.records[0].status").value("PAID"));
+    }
+
+    @Test @Order(7)
     @DisplayName("TC-06: 查询订单详情接口 - 验证详情格式")
     public void testGetOrderDetail() throws Exception {
         resetTestData();

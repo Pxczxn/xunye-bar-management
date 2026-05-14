@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Select, Modal, message } from 'antd';
 import { Search, RotateCcw, RefreshCw, Eye, CreditCard, XCircle, CheckCircle } from 'lucide-react';
 import { getOrderPage, getOrderDetail, payOrder, cancelOrder, finishOrder, startMaking } from '@/api/order';
-import type { OrderPageVO } from '@/types/api';
+import type { OrderPageVO, OrderQueryParams } from '@/types/api';
 
 const darkSelectProps = {
   className: 'xunye-select',
@@ -90,14 +90,14 @@ export default function Orders() {
     setLoading(true);
     setError(null);
     try {
-      const params: Record<string, unknown> = { pageNum, pageSize };
+      const params: OrderQueryParams = { pageNum, pageSize };
       if (queryOrderNo) params.orderNo = queryOrderNo;
       if (queryTableName) params.tableName = queryTableName;
       if (queryStatus) params.status = queryStatus;
       if (querySource) params.source = querySource;
       if (queryServeStatus) params.serveStatus = queryServeStatus;
       if (queryExcludeStatus) params.excludeStatus = queryExcludeStatus;
-      const res = await getOrderPage(params as never);
+      const res = await getOrderPage(params);
       setRecords(res.records || []);
       setTotal(res.total || 0);
     } catch (e: unknown) {
@@ -109,7 +109,14 @@ export default function Orders() {
 
   const fetchPendingCount = useCallback(async () => {
     try {
-      const res = await getOrderPage({ pageNum: 1, pageSize: 1, source: 'CUSTOMER_MINI', status: 'PAID', serveStatus: 'PENDING', excludeStatus: 'CANCELLED' } as never);
+      const res = await getOrderPage({
+        pageNum: 1,
+        pageSize: 1,
+        source: 'CUSTOMER_MINI',
+        status: 'PAID',
+        serveStatus: 'PENDING',
+        excludeStatus: 'CANCELLED',
+      });
       const count = res.total || 0;
       if (count > prevPendingRef.current) {
         message.warning({
@@ -638,6 +645,47 @@ export default function Orders() {
                   <span className="text-text-main ml-1">{detailOrder.remark}</span>
                 </div>
               )}
+            </div>
+
+            <div className="rounded-xl border border-border-dark bg-sidebar-bg/50 p-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-text-main">订单操作</p>
+                  <p className="mt-1 text-xs text-text-weak">
+                    {detailOrder.status === 'UNPAID' && '该订单尚未收款，请先完成收款。'}
+                    {detailOrder.status === 'PAID' && (detailOrder.serveStatus || 'PENDING') === 'PENDING' && '已收款，等待开始制作。'}
+                    {detailOrder.status === 'PAID' && (detailOrder.serveStatus || 'PENDING') === 'MAKING' && '订单正在制作，完成并送达桌台后确认。'}
+                    {detailOrder.status === 'PAID' && (detailOrder.serveStatus || 'PENDING') === 'FINISHED' && '制作已完成，后续可在桌台页清台。'}
+                    {detailOrder.status === 'CANCELLED' && '订单已取消，无需继续处理。'}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  {detailOrder.status === 'UNPAID' && (
+                    <button
+                      onClick={() => openPay(detailOrder)}
+                      className="rounded-lg bg-green-500/15 px-3 py-2 text-sm font-semibold text-green-300 transition-colors hover:bg-green-500/25"
+                    >
+                      收款
+                    </button>
+                  )}
+                  {detailOrder.status === 'PAID' && (detailOrder.serveStatus || 'PENDING') === 'PENDING' && (
+                    <button
+                      onClick={() => handleStartMaking(detailOrder)}
+                      className="rounded-lg bg-brand-gold px-3 py-2 text-sm font-semibold text-main-bg transition-colors hover:bg-brand-gold/90"
+                    >
+                      开始制作
+                    </button>
+                  )}
+                  {detailOrder.status === 'PAID' && (detailOrder.serveStatus || 'PENDING') === 'MAKING' && (
+                    <button
+                      onClick={() => handleFinish(detailOrder)}
+                      className="rounded-lg border border-blue-400/40 bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-300 transition-colors hover:bg-blue-500/20"
+                    >
+                      确认制作完成
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="border-t border-border-dark pt-3">

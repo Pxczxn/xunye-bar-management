@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 @SpringBootTest
@@ -61,8 +62,17 @@ class CustomerPaymentControllerTest {
         assertFalse(paymentNo.isBlank());
         assertEquals("PENDING", created.path("data").path("status").asText());
 
+        JsonNode queriedBeforeConfirm = getJson("/api/customer/payments/" + paymentNo);
+        assertEquals(200, queriedBeforeConfirm.path("code").asInt(), queriedBeforeConfirm.toString());
+        assertEquals(orderNo, queriedBeforeConfirm.path("data").path("orderNo").asText());
+        assertEquals("PENDING", queriedBeforeConfirm.path("data").path("status").asText());
+
         JsonNode confirmed = postJson("/api/customer/payments/" + paymentNo + "/confirm");
         assertEquals(200, confirmed.path("code").asInt(), confirmed.toString());
+
+        JsonNode queriedAfterConfirm = getJson("/api/customer/payments/" + paymentNo);
+        assertEquals(200, queriedAfterConfirm.path("code").asInt(), queriedAfterConfirm.toString());
+        assertEquals("SUCCESS", queriedAfterConfirm.path("data").path("status").asText());
 
         String status = jdbcTemplate.queryForObject(
                 "SELECT status FROM order_info WHERE order_no = ?", String.class, orderNo);
@@ -78,6 +88,11 @@ class CustomerPaymentControllerTest {
 
     private JsonNode postJson(String path) throws Exception {
         MvcResult result = mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON)).andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString());
+    }
+
+    private JsonNode getJson(String path) throws Exception {
+        MvcResult result = mockMvc.perform(get(path).contentType(MediaType.APPLICATION_JSON)).andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 }

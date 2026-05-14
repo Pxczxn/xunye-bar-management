@@ -4,6 +4,7 @@ import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import Products from '../pages/Products';
 import Orders from '../pages/Orders';
+import Kitchen from '../pages/Kitchen';
 import Inventory from '../pages/Inventory';
 import Categories from '../pages/Categories';
 import Tables from '../pages/Tables';
@@ -16,7 +17,7 @@ function getRole(): string {
 }
 
 function defaultHome(role: string) {
-  return role === 'STAFF' ? '/orders' : '/dashboard';
+  return role === 'STAFF' ? '/kitchen' : '/dashboard';
 }
 
 function RequireAuth() {
@@ -62,6 +63,7 @@ const router = createBrowserRouter([
             { path: 'employees', element: <Staff /> },
             { path: 'settings', element: <Settings /> },
           ]},
+          { path: 'kitchen', element: <Kitchen /> },
           { path: 'orders', element: <Orders /> },
           { path: 'pos', element: <Pos /> },
           { path: 'tables', element: <Tables /> },

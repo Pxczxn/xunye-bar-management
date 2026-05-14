@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Coffee,
+  ChefHat,
   Receipt,
   Wine,
   Tags,
@@ -14,6 +15,7 @@ import {
 const MENU_ITEMS = [
   { label: '营业看板', sub: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['BOSS', 'MANAGER'] },
   { label: '吧台点单', sub: 'POS', path: '/pos', icon: Coffee, roles: ['BOSS', 'MANAGER', 'STAFF'] },
+  { label: '出品看板', sub: 'Kitchen', path: '/kitchen', icon: ChefHat, roles: ['BOSS', 'MANAGER', 'STAFF'] },
   { label: '订单流水', sub: 'Orders', path: '/orders', icon: Receipt, roles: ['BOSS', 'MANAGER', 'STAFF'] },
   { label: '酒水管理', sub: 'Products', path: '/products', icon: Wine, roles: ['BOSS', 'MANAGER'] },
   { label: '商品分类', sub: 'Categories', path: '/categories', icon: Tags, roles: ['BOSS', 'MANAGER'] },
