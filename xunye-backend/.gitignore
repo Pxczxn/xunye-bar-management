@@ -42,3 +42,8 @@ Thumbs.db
 
 # Application
 logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local

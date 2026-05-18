@@ -1,6 +1,7 @@
 package com.xunye.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xunye.admin.common.BusinessException;
 import com.xunye.admin.dto.OrderCreateDTO;
 import com.xunye.admin.dto.OrderPayDTO;
@@ -9,6 +10,7 @@ import com.xunye.admin.entity.BarTable;
 import com.xunye.admin.entity.OrderInfo;
 import com.xunye.admin.entity.OrderItem;
 import com.xunye.admin.entity.Product;
+import com.xunye.admin.enums.*;
 import com.xunye.admin.mapper.BarTableMapper;
 import com.xunye.admin.mapper.OrderInfoMapper;
 import com.xunye.admin.mapper.OrderItemMapper;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -87,11 +90,10 @@ public class OrderServiceImpl implements OrderService {
             if (product == null) {
                 throw new BusinessException("商品不存在: ID=" + itemDTO.getProductId());
             }
-            if (product.getStock() < itemDTO.getQuantity()) {
-                throw new BusinessException("商品 [" + product.getName() + "] 库存不足，当前库存: " + product.getStock());
-            }
 
-            BigDecimal itemAmount = product.getPrice().multiply(BigDecimal.valueOf(itemDTO.getQuantity()));
+            BigDecimal itemAmount = product.getPrice()
+                    .multiply(BigDecimal.valueOf(itemDTO.getQuantity()))
+                    .setScale(2, RoundingMode.HALF_UP);
             totalAmount = totalAmount.add(itemAmount);
 
             OrderItem orderItem = new OrderItem();
@@ -105,9 +107,14 @@ public class OrderServiceImpl implements OrderService {
         }
 
         for (var itemDTO : dto.getItems()) {
-            Product product = productMap.get(itemDTO.getProductId());
-            product.setStock(product.getStock() - itemDTO.getQuantity());
-            productMapper.updateById(product);
+            int updated = productMapper.decreaseStock(
+                itemDTO.getProductId(), 
+                itemDTO.getQuantity()
+            );
+            if (updated == 0) {
+                Product product = productMapper.selectById(itemDTO.getProductId());
+                throw new BusinessException("商品 [" + product.getName() + "] 库存不足");
+            }
         }
 
         OrderInfo order = new OrderInfo();
@@ -115,9 +122,9 @@ public class OrderServiceImpl implements OrderService {
         order.setTableId(table.getId());
         order.setTableName(table.getName());
         order.setTotalAmount(totalAmount);
-        order.setStatus("UNPAID");
-        order.setServeStatus("PENDING");
-        order.setSource("ADMIN_POS");
+        order.setStatus(OrderStatus.UNPAID.getCode());
+        order.setServeStatus(ServeStatus.PENDING.getCode());
+        order.setSource(OrderSource.ADMIN_POS.getCode());
         order.setRemark(dto.getRemark());
         order.setCreatedAt(LocalDateTime.now());
         orderInfoMapper.insert(order);
@@ -127,7 +134,7 @@ public class OrderServiceImpl implements OrderService {
             orderItemMapper.insert(item);
         }
 
-        table.setStatus("USING");
+        table.setStatus(TableStatus.USING.getCode());
         barTableMapper.updateById(table);
 
         return order.getId();
@@ -161,10 +168,9 @@ public class OrderServiceImpl implements OrderService {
 
         wrapper.orderByDesc(OrderInfo::getCreatedAt);
 
-        long total = orderInfoMapper.selectCount(wrapper);
-
-        wrapper.last("LIMIT " + pageSize + " OFFSET " + (pageNum - 1) * pageSize);
-        List<OrderInfo> orders = orderInfoMapper.selectList(wrapper);
+        Page<OrderInfo> pageResult = orderInfoMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        List<OrderInfo> orders = pageResult.getRecords();
+        long total = pageResult.getTotal();
 
         List<Long> orderIds = orders.stream().map(OrderInfo::getId).collect(Collectors.toList());
         Map<Long, List<OrderItem>> itemsMap = Map.of();
@@ -206,18 +212,15 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void payOrder(Long id, OrderPayDTO dto) {
-        OrderInfo order = orderInfoMapper.selectById(id);
-        if (order == null) {
+        if (orderInfoMapper.selectById(id) == null) {
             throw new BusinessException(404, "订单不存在");
         }
-        if (!"UNPAID".equals(order.getStatus())) {
+        int updated = orderInfoMapper.payOrderConditional(id,
+                OrderStatus.UNPAID.getCode(), OrderStatus.PAID.getCode(),
+                dto.getPaymentMethod(), LocalDateTime.now());
+        if (updated == 0) {
             throw new BusinessException("当前订单状态不允许支付，仅未支付订单可支付");
         }
-
-        order.setStatus("PAID");
-        order.setPaymentMethod(dto.getPaymentMethod());
-        order.setPaidAt(LocalDateTime.now());
-        orderInfoMapper.updateById(order);
     }
 
     @Override
@@ -227,7 +230,10 @@ public class OrderServiceImpl implements OrderService {
         if (order == null) {
             throw new BusinessException(404, "订单不存在");
         }
-        if (!"UNPAID".equals(order.getStatus())) {
+
+        int updated = orderInfoMapper.cancelOrderConditional(id,
+                OrderStatus.UNPAID.getCode(), OrderStatus.CANCELLED.getCode(), LocalDateTime.now());
+        if (updated == 0) {
             throw new BusinessException("当前订单状态不允许取消，仅未支付订单可取消");
         }
 
@@ -236,16 +242,8 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItem> items = orderItemMapper.selectList(itemWrapper);
 
         for (OrderItem item : items) {
-            Product product = productMapper.selectById(item.getProductId());
-            if (product != null) {
-                product.setStock(product.getStock() + item.getQuantity());
-                productMapper.updateById(product);
-            }
+            productMapper.increaseStock(item.getProductId(), item.getQuantity());
         }
-
-        order.setStatus("CANCELLED");
-        order.setCancelledAt(LocalDateTime.now());
-        orderInfoMapper.updateById(order);
 
         checkAndResetTableStatus(order.getTableId());
     }
@@ -255,11 +253,11 @@ public class OrderServiceImpl implements OrderService {
     public void startMaking(Long id) {
         OrderInfo order = orderInfoMapper.selectById(id);
         if (order == null) throw new BusinessException(404, "订单不存在");
-        if ("CANCELLED".equals(order.getStatus())) throw new BusinessException("已取消的订单不能开始制作");
-        if (!"PAID".equals(order.getStatus())) throw new BusinessException("未支付订单不能开始制作");
-        if ("FINISHED".equals(order.getServeStatus())) throw new BusinessException("已完成的订单不能重新制作");
-        if ("MAKING".equals(order.getServeStatus())) throw new BusinessException("订单已在制作中，请勿重复操作");
-        order.setServeStatus("MAKING");
+        if (OrderStatus.CANCELLED.getCode().equals(order.getStatus())) throw new BusinessException("已取消的订单不能开始制作");
+        if (!OrderStatus.PAID.getCode().equals(order.getStatus())) throw new BusinessException("未支付订单不能开始制作");
+        if (ServeStatus.FINISHED.getCode().equals(order.getServeStatus())) throw new BusinessException("已完成的订单不能重新制作");
+        if (ServeStatus.MAKING.getCode().equals(order.getServeStatus())) throw new BusinessException("订单已在制作中，请勿重复操作");
+        order.setServeStatus(ServeStatus.MAKING.getCode());
         orderInfoMapper.updateById(order);
     }
 
@@ -268,11 +266,11 @@ public class OrderServiceImpl implements OrderService {
     public void finishServe(Long id) {
         OrderInfo order = orderInfoMapper.selectById(id);
         if (order == null) throw new BusinessException(404, "订单不存在");
-        if ("CANCELLED".equals(order.getStatus())) throw new BusinessException("已取消的订单不能完成");
-        if (!"PAID".equals(order.getStatus())) throw new BusinessException("未支付订单不能确认制作完成");
-        if (!"MAKING".equals(order.getServeStatus())) throw new BusinessException("只有制作中的订单才能确认完成");
-        if ("FINISHED".equals(order.getServeStatus())) throw new BusinessException("订单已完成，请勿重复操作");
-        order.setServeStatus("FINISHED");
+        if (OrderStatus.CANCELLED.getCode().equals(order.getStatus())) throw new BusinessException("已取消的订单不能完成");
+        if (!OrderStatus.PAID.getCode().equals(order.getStatus())) throw new BusinessException("未支付订单不能确认制作完成");
+        if (!ServeStatus.MAKING.getCode().equals(order.getServeStatus())) throw new BusinessException("只有制作中的订单才能确认完成");
+        if (ServeStatus.FINISHED.getCode().equals(order.getServeStatus())) throw new BusinessException("订单已完成，请勿重复操作");
+        order.setServeStatus(ServeStatus.FINISHED.getCode());
         orderInfoMapper.updateById(order);
     }
 
@@ -285,14 +283,15 @@ public class OrderServiceImpl implements OrderService {
     private void checkAndResetTableStatus(Long tableId) {
         LambdaQueryWrapper<OrderInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(OrderInfo::getTableId, tableId)
-               .ne(OrderInfo::getStatus, "CANCELLED")
-               .ne(OrderInfo::getServeStatus, "FINISHED");
+               .eq(OrderInfo::getDeleted, 0)
+               .in(OrderInfo::getStatus, OrderStatus.UNPAID.getCode(), OrderStatus.PAID.getCode())
+               .ne(OrderInfo::getServeStatus, ServeStatus.FINISHED.getCode());
         long activeCount = orderInfoMapper.selectCount(wrapper);
 
         if (activeCount == 0) {
             BarTable table = barTableMapper.selectById(tableId);
-            if (table != null && "USING".equals(table.getStatus())) {
-                table.setStatus("EMPTY");
+            if (table != null && TableStatus.USING.getCode().equals(table.getStatus())) {
+                table.setStatus(TableStatus.EMPTY.getCode());
                 barTableMapper.updateById(table);
             }
         }
@@ -308,11 +307,10 @@ public class OrderServiceImpl implements OrderService {
         if (method == null) {
             return "";
         }
-        switch (method) {
-            case "WECHAT": return "微信";
-            case "ALIPAY": return "支付宝";
-            case "CASH": return "现金";
-            default: return method;
+        try {
+            return PaymentMethod.fromCode(method).getDescription();
+        } catch (IllegalArgumentException e) {
+            return method;
         }
     }
 

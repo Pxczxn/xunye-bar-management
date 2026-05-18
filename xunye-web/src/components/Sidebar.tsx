@@ -10,6 +10,8 @@ import {
   LayoutGrid,
   Users,
   Settings,
+  Crown,
+  Gift,
 } from 'lucide-react';
 
 const MENU_ITEMS = [
@@ -20,6 +22,8 @@ const MENU_ITEMS = [
   { label: '酒水管理', sub: 'Products', path: '/products', icon: Wine, roles: ['BOSS', 'MANAGER'] },
   { label: '商品分类', sub: 'Categories', path: '/categories', icon: Tags, roles: ['BOSS', 'MANAGER'] },
   { label: '库存预警', sub: 'Inventory', path: '/inventory', icon: Archive, roles: ['BOSS', 'MANAGER'] },
+  { label: '会员管理', sub: 'Members', path: '/members', icon: Crown, roles: ['BOSS', 'MANAGER'] },
+  { label: '活动管理', sub: 'Activities', path: '/activities', icon: Gift, roles: ['BOSS', 'MANAGER'] },
   { label: '桌台区域', sub: 'Tables', path: '/tables', icon: LayoutGrid, roles: ['BOSS', 'MANAGER', 'STAFF'] },
   { label: '员工账号', sub: 'Staff', path: '/employees', icon: Users, roles: ['BOSS'] },
   { label: '系统设置', sub: 'Settings', path: '/settings', icon: Settings, roles: ['BOSS'] },

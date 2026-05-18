@@ -34,4 +34,27 @@ public interface ProductMapper extends BaseMapper<Product> {
             @Param("status") String status
     );
 
+    /**
+     * 原子性扣减库存（使用数据库锁）
+     * @return 影响的行数，0表示库存不足或商品不存在
+     */
+    int decreaseStock(@Param("productId") Long productId, @Param("quantity") Integer quantity);
+
+    /**
+     * 原子性增加库存（使用数据库锁）
+     * @return 影响的行数
+     */
+    int increaseStock(@Param("productId") Long productId, @Param("quantity") Integer quantity);
+
+    /**
+     * 原子性调整库存，delta 为正数入库，负数出库，保证 stock + delta >= 0
+     * @return 影响行数，0 表示库存不足
+     */
+    int adjustStock(@Param("productId") Long productId, @Param("delta") int delta);
+
+    /**
+     * 原子性设置库存（盘点）
+     */
+    int setStock(@Param("productId") Long productId, @Param("stock") int stock);
+
 }

@@ -308,3 +308,86 @@ export interface StaffUpdateParams {
   role: 'BOSS' | 'MANAGER' | 'STAFF';
   status: 0 | 1;
 }
+
+// ===== 会员管理 =====
+export interface CustomerMemberItem {
+  id: number;
+  phone: string;
+  nickname: string;
+  avatar: string | null;
+  memberLevel: string;
+  memberLevelName: string;
+  points: number;
+  balance: number;
+  totalOrders: number;
+  totalAmount: number;
+  nextLevelAmount: number;
+  nextLevelName: string;
+  lastVisitAt: string | null;
+  createdAt: string;
+}
+
+export interface CustomerMemberPageResult {
+  records: CustomerMemberItem[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}
+
+export interface CustomerMemberQueryParams {
+  pageNum: number;
+  pageSize: number;
+  keyword?: string;
+  memberLevel?: string;
+}
+
+export interface MemberLevelItem {
+  level: string;
+  name: string;
+  minAmount: number;
+  discount: number;
+  pointsRate: number;
+  description: string;
+  sort: number;
+}
+
+// ===== 活动管理 =====
+export interface ActivityItem {
+  id: number;
+  title: string;
+  description: string | null;
+  type: string;
+  startDate: string | null;
+  endDate: string | null;
+  coverImage: string | null;
+  status: number;
+  sort: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActivityPageResult {
+  records: ActivityItem[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}
+
+export interface ActivityQueryParams {
+  pageNum: number;
+  pageSize: number;
+  keyword?: string;
+  type?: string;
+  status?: number;
+}
+
+export interface ActivityFormData {
+  title: string;
+  description: string;
+  type: string;
+  startDate: string | null;
+  endDate: string | null;
+  coverImage: string;
+  status: number;
+  sort: number;
+}

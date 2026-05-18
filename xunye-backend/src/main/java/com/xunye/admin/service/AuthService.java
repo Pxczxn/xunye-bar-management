@@ -34,4 +34,5 @@ public interface AuthService {
      */
     String getRoleByToken(String token);
 
+    void logout(String token);
 }

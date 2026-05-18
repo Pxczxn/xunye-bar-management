@@ -1,5 +1,6 @@
 package com.xunye.admin.controller;
 
+import com.xunye.admin.annotation.AuditLog;
 import com.xunye.admin.annotation.RequireRole;
 import com.xunye.admin.common.ApiResponse;
 import com.xunye.admin.dto.*;
@@ -41,6 +42,7 @@ public class StaffController {
      * 新增员工
      */
     @PostMapping
+    @AuditLog(operation = "新增员工", module = "员工管理")
     public ApiResponse<Void> createStaff(@Valid @RequestBody StaffSaveDTO dto) {
         staffService.createStaff(dto);
         return ApiResponse.success();
@@ -50,6 +52,7 @@ public class StaffController {
      * 编辑员工
      */
     @PutMapping("/{id}")
+    @AuditLog(operation = "编辑员工", module = "员工管理")
     public ApiResponse<Void> updateStaff(@PathVariable Long id, @Valid @RequestBody StaffUpdateDTO dto) {
         staffService.updateStaff(id, dto);
         return ApiResponse.success();
@@ -59,6 +62,7 @@ public class StaffController {
      * 更新员工状态
      */
     @PatchMapping("/{id}/status")
+    @AuditLog(operation = "更新员工状态", module = "员工管理")
     public ApiResponse<Void> updateStaffStatus(@PathVariable Long id, @Valid @RequestBody StaffStatusDTO dto) {
         staffService.updateStaffStatus(id, dto);
         return ApiResponse.success();
@@ -68,6 +72,7 @@ public class StaffController {
      * 重置员工密码
      */
     @PatchMapping("/{id}/reset-password")
+    @AuditLog(operation = "重置员工密码", module = "员工管理")
     public ApiResponse<Void> resetPassword(@PathVariable Long id, @Valid @RequestBody StaffPasswordDTO dto) {
         staffService.resetPassword(id, dto);
         return ApiResponse.success();
@@ -77,6 +82,7 @@ public class StaffController {
      * 删除员工
      */
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除员工", module = "员工管理")
     public ApiResponse<Void> deleteStaff(@PathVariable Long id) {
         staffService.deleteStaff(id);
         return ApiResponse.success();

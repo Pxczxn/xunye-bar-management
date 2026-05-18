@@ -7,6 +7,7 @@ import com.xunye.admin.dto.ProductSaveDTO;
 import com.xunye.admin.dto.ProductStatusDTO;
 import com.xunye.admin.entity.Product;
 import com.xunye.admin.entity.ProductCategory;
+import com.xunye.admin.enums.ProductStatus;
 import com.xunye.admin.mapper.ProductCategoryMapper;
 import com.xunye.admin.mapper.ProductMapper;
 import com.xunye.admin.service.ProductBrandService;
@@ -103,13 +104,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public void createProduct(ProductSaveDTO dto) {
-        // 检查分类是否存在
         ProductCategory category = categoryMapper.selectById(dto.getCategoryId());
         if (category == null) {
             throw new BusinessException(404, "分类不存在");
         }
 
-        // 创建商品
         Product product = new Product();
         BeanUtils.copyProperties(dto, product);
         if (product.getStock() == null) {
@@ -119,11 +118,10 @@ public class ProductServiceImpl implements ProductService {
             product.setSafeStock(0);
         }
         if (product.getStatus() == null) {
-            product.setStatus("ON_SALE");
+            product.setStatus(ProductStatus.ON_SALE.getCode());
         }
         productMapper.insert(product);
 
-        // 自动保存品牌历史
         brandService.autoSaveBrand(dto.getBrand());
     }
 

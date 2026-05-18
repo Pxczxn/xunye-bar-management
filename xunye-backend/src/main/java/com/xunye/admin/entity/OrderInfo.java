@@ -35,6 +35,16 @@ public class OrderInfo {
     private String tableName;
 
     /**
+     * 顾客ID
+     */
+    private Long customerId;
+
+    /**
+     * 顾客手机号
+     */
+    private String customerPhone;
+
+    /**
      * 订单总金额
      */
     private BigDecimal totalAmount;

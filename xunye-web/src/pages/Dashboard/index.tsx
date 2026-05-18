@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
-import ReactECharts from 'echarts-for-react';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
+import * as echarts from 'echarts/core';
+import { LineChart, PieChart } from 'echarts/charts';
+import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
 import { CreditCard, UtensilsCrossed, TrendingUp, AlertTriangle } from 'lucide-react';
 import { getDashboardSummary, getSalesTrend, getPaymentMethods, getHotProducts } from '@/api/dashboard';
 import { Loading } from '@/components/Loading';
 import { ErrorState } from '@/components/ErrorState';
 import { DashboardSummary, SalesTrend, PaymentMethod, HotProduct } from '@/types/api';
+
+echarts.use([LineChart, PieChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -90,13 +96,13 @@ export default function Dashboard() {
             <span className="text-text-weak text-[10px] font-normal">最近运行周期</span>
           </div>
           <div className="h-[300px] w-full">
-             <ReactECharts option={trendOption} style={{ height: '100%', width: '100%' }} />
+             <ReactEChartsCore echarts={echarts} option={trendOption} style={{ height: '100%', width: '100%' }} />
           </div>
         </div>
         <div className="bg-card-bg border border-border-dark p-6 rounded-xl">
           <h3 className="text-sm font-semibold text-text-main mb-6">支付方式占比</h3>
           <div className="h-[300px] w-full">
-            <ReactECharts option={paymentOption} style={{ height: '100%', width: '100%' }} />
+            <ReactEChartsCore echarts={echarts} option={paymentOption} style={{ height: '100%', width: '100%' }} />
           </div>
         </div>
       </div>

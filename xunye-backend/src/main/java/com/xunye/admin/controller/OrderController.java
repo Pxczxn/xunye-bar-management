@@ -1,5 +1,6 @@
 package com.xunye.admin.controller;
 
+import com.xunye.admin.annotation.AuditLog;
 import com.xunye.admin.annotation.RequireRole;
 import com.xunye.admin.common.ApiResponse;
 import com.xunye.admin.dto.OrderCreateDTO;
@@ -38,6 +39,7 @@ public class OrderController {
      * 创建订单
      */
     @PostMapping
+    @AuditLog(operation = "创建订单", module = "订单管理")
     public ApiResponse<Long> createOrder(@Valid @RequestBody OrderCreateDTO dto) {
         return ApiResponse.success(orderService.createOrder(dto));
     }
@@ -62,27 +64,28 @@ public class OrderController {
      * 支付订单
      */
     @PatchMapping("/{id}/pay")
+    @AuditLog(operation = "支付订单", module = "订单管理")
     public ApiResponse<Void> payOrder(@PathVariable Long id, @Valid @RequestBody OrderPayDTO dto) {
         orderService.payOrder(id, dto);
         return ApiResponse.success();
     }
 
-    /**
-     * 取消订单
-     */
     @PatchMapping("/{id}/cancel")
+    @AuditLog(operation = "取消订单", module = "订单管理")
     public ApiResponse<Void> cancelOrder(@PathVariable Long id) {
         orderService.cancelOrder(id);
         return ApiResponse.success(null);
     }
 
     @PatchMapping("/{id}/making")
+    @AuditLog(operation = "开始制作", module = "订单管理")
     public ApiResponse<Void> startMaking(@PathVariable Long id) {
         orderService.startMaking(id);
         return ApiResponse.success(null);
     }
 
     @PatchMapping("/{id}/finish")
+    @AuditLog(operation = "完成订单", module = "订单管理")
     public ApiResponse<Void> finishOrder(@PathVariable Long id) {
         orderService.finishOrder(id);
         return ApiResponse.success(null);

@@ -1,6 +1,7 @@
 package com.xunye.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xunye.admin.common.BusinessException;
 import com.xunye.admin.dto.InventoryAdjustDTO;
 import com.xunye.admin.entity.InventoryRecord;
@@ -77,11 +78,9 @@ public class InventoryServiceImpl implements InventoryService {
 
         wrapper.orderByDesc(InventoryRecord::getCreatedAt);
 
-        long total = inventoryRecordMapper.selectCount(wrapper);
-
-        wrapper.last("LIMIT " + pageSize + " OFFSET " + (pageNum - 1) * pageSize);
-
-        List<InventoryRecord> records = inventoryRecordMapper.selectList(wrapper);
+        Page<InventoryRecord> pageResult = inventoryRecordMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        List<InventoryRecord> records = pageResult.getRecords();
+        long total = pageResult.getTotal();
 
         List<InventoryRecordVO> voList = records.stream().map(r -> {
             InventoryRecordVO vo = new InventoryRecordVO();
@@ -115,38 +114,42 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         int beforeStock = product.getStock();
+        int delta;
         int afterStock;
-        int changeQuantity;
 
         switch (dto.getType()) {
             case "IN":
-                afterStock = beforeStock + dto.getQuantity();
-                changeQuantity = dto.getQuantity();
+                delta = dto.getQuantity();
+                afterStock = beforeStock + delta;
+                if (productMapper.adjustStock(dto.getProductId(), delta) == 0) {
+                    throw new BusinessException("库存调整失败");
+                }
                 break;
             case "OUT":
             case "LOSS":
-                afterStock = beforeStock - dto.getQuantity();
+                delta = -dto.getQuantity();
+                afterStock = beforeStock + delta;
                 if (afterStock < 0) {
                     throw new BusinessException("库存不足，无法扣减");
                 }
-                changeQuantity = -dto.getQuantity();
+                if (productMapper.adjustStock(dto.getProductId(), delta) == 0) {
+                    throw new BusinessException("库存不足，无法扣减");
+                }
                 break;
             case "ADJUST":
+                delta = dto.getQuantity() - beforeStock;
                 afterStock = dto.getQuantity();
-                changeQuantity = dto.getQuantity() - beforeStock;
+                productMapper.setStock(dto.getProductId(), afterStock);
                 break;
             default:
                 throw new BusinessException("无效的操作类型");
         }
 
-        product.setStock(afterStock);
-        productMapper.updateById(product);
-
         InventoryRecord record = new InventoryRecord();
         record.setProductId(product.getId());
         record.setProductName(product.getName());
         record.setType(dto.getType());
-        record.setChangeQuantity(changeQuantity);
+        record.setChangeQuantity(delta);
         record.setBeforeStock(beforeStock);
         record.setAfterStock(afterStock);
         record.setReason(dto.getReason());

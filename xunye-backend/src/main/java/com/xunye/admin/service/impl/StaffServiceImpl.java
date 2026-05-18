@@ -1,6 +1,7 @@
 package com.xunye.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xunye.admin.common.BusinessException;
 import com.xunye.admin.dto.*;
 import com.xunye.admin.entity.StaffUser;
@@ -50,10 +51,9 @@ public class StaffServiceImpl implements StaffService {
 
         wrapper.orderByDesc(StaffUser::getCreatedAt);
 
-        long total = staffUserMapper.selectCount(wrapper);
-
-        wrapper.last("LIMIT " + currentSize + " OFFSET " + offset);
-        List<StaffUser> list = staffUserMapper.selectList(wrapper);
+        Page<StaffUser> pageResult = staffUserMapper.selectPage(new Page<>(currentPage, currentSize), wrapper);
+        List<StaffUser> list = pageResult.getRecords();
+        long total = pageResult.getTotal();
 
         List<StaffPageVO> voList = list.stream().map(this::toPageVO).collect(Collectors.toList());
 

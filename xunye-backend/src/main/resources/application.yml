@@ -14,9 +14,36 @@ spring:
   # 数据源配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/xunye_bar?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: pxczxn
-    password: pxczxn
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:xunye_bar}?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:pxczxn}
+    password: ${DB_PASSWORD:pxczxn}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: 3000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  # Redis配置
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+  # 文件上传配置
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+      file-size-threshold: 0
 
 # MyBatis-Plus 配置
 mybatis-plus:
@@ -25,10 +52,10 @@ mybatis-plus:
   # 实体类包路径
   type-aliases-package: com.xunye.admin.entity
   configuration:
-    # 日志输出 SQL
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     # 下划线转驼峰
     map-underscore-to-camel-case: true
+    cache-enabled: true
+    default-fetch-size: 100
   global-config:
     db-config:
       # 逻辑删除字段
@@ -36,12 +63,18 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
+# 文件存储路径配置
+file:
+  upload:
+    base-path: ${FILE_UPLOAD_PATH:D:/Codeing/Project/XUNYE/xunye-backend/images}
+    product-path: /products
+
 # 支付配置
 payment:
-  provider: mock  # mock=开发环境模拟支付 | wechat=微信支付（需实现 WechatPaymentProvider）
+  provider: ${PAYMENT_PROVIDER:mock}  # mock=开发环境模拟支付 | wechat=微信支付（需实现 WechatPaymentProvider）
 
 # 日志配置
 logging:
   level:
-    com.xunye.admin: debug
+    com.xunye.admin: ${APP_LOG_LEVEL:info}
     root: info

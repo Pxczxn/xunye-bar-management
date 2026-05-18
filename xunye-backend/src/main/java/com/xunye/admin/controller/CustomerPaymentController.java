@@ -1,5 +1,7 @@
 package com.xunye.admin.controller;
 
+import com.xunye.admin.annotation.AuditLog;
+import com.xunye.admin.annotation.RateLimited;
 import com.xunye.admin.common.ApiResponse;
 import com.xunye.admin.entity.PaymentOrder;
 import com.xunye.admin.payment.PaymentService;
@@ -19,17 +21,22 @@ public class CustomerPaymentController {
     private final PaymentService paymentService;
 
     @PostMapping("/orders/{orderNo}/payments")
+    @AuditLog(operation = "创建支付单", module = "支付管理")
+    @RateLimited(limit = 10, period = 60, key = "create_payment")
     public ApiResponse<PaymentVO> createPayment(@PathVariable String orderNo) {
         return ApiResponse.success(toVO(paymentService.createPayment(orderNo)));
     }
 
     @PostMapping("/payments/{paymentNo}/confirm")
+    @AuditLog(operation = "确认支付", module = "支付管理")
+    @RateLimited(limit = 10, period = 60, key = "confirm_payment")
     public ApiResponse<Void> confirm(@PathVariable String paymentNo) {
         paymentService.confirmPayment(paymentNo);
         return ApiResponse.success();
     }
 
     @GetMapping("/payments/{paymentNo}")
+    @RateLimited(limit = 50, period = 60)
     public ApiResponse<PaymentVO> query(@PathVariable String paymentNo) {
         return ApiResponse.success(toVO(paymentService.getPaymentOrder(paymentNo)));
     }

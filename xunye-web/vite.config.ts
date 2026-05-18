@@ -21,4 +21,24 @@ export default defineConfig({
       }
     }
   },
+  build: {
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('react') || id.includes('react-router-dom')) {
+            return 'react-vendor';
+          }
+          if (id.includes('antd') || id.includes('@ant-design')) {
+            return 'antd-vendor';
+          }
+          if (id.includes('echarts')) {
+            return 'charts-vendor';
+          }
+          return 'vendor';
+        },
+      },
+    },
+  },
 });

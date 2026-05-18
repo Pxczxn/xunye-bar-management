@@ -1,5 +1,6 @@
 package com.xunye.admin.controller;
 
+import com.xunye.admin.annotation.AuditLog;
 import com.xunye.admin.annotation.RequireRole;
 import com.xunye.admin.common.ApiResponse;
 import com.xunye.admin.dto.BarTableQueryDTO;
@@ -36,6 +37,7 @@ public class BarTableController {
      */
     @PostMapping
     @RequireRole({"BOSS", "MANAGER"})
+    @AuditLog(operation = "新增桌台", module = "桌台管理")
     public ApiResponse<Void> createTable(@Valid @RequestBody BarTableSaveDTO dto) {
         barTableService.createTable(dto);
         return ApiResponse.success();
@@ -46,6 +48,7 @@ public class BarTableController {
      */
     @PutMapping("/{id}")
     @RequireRole({"BOSS", "MANAGER"})
+    @AuditLog(operation = "修改桌台", module = "桌台管理")
     public ApiResponse<Void> updateTable(@PathVariable Long id, @Valid @RequestBody BarTableSaveDTO dto) {
         barTableService.updateTable(id, dto);
         return ApiResponse.success();
@@ -56,6 +59,7 @@ public class BarTableController {
      */
     @PatchMapping("/{id}/status")
     @RequireRole({"BOSS", "MANAGER", "STAFF"})
+    @AuditLog(operation = "修改桌台状态", module = "桌台管理")
     public ApiResponse<Void> updateTableStatus(@PathVariable Long id, @Valid @RequestBody BarTableStatusDTO dto) {
         barTableService.updateTableStatus(id, dto);
         return ApiResponse.success();
@@ -66,6 +70,7 @@ public class BarTableController {
      */
     @PatchMapping("/{id}/clear")
     @RequireRole({"BOSS", "MANAGER", "STAFF"})
+    @AuditLog(operation = "清台", module = "桌台管理")
     public ApiResponse<Void> clearTable(@PathVariable Long id) {
         barTableService.clearTable(id);
         return ApiResponse.success();
@@ -76,6 +81,7 @@ public class BarTableController {
      */
     @DeleteMapping("/{id}")
     @RequireRole({"BOSS", "MANAGER"})
+    @AuditLog(operation = "删除桌台", module = "桌台管理")
     public ApiResponse<Void> deleteTable(@PathVariable Long id) {
         barTableService.deleteTable(id);
         return ApiResponse.success();

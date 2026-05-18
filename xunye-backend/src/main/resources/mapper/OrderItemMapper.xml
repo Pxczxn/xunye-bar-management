@@ -9,7 +9,7 @@
             SUM(oi.amount) AS salesAmount
         FROM order_item oi
         INNER JOIN order_info o ON oi.order_id = o.id AND o.deleted = 0
-        WHERE o.status = 'PAID'
+        WHERE o.status IN ('PAID', 'FINISHED')
         GROUP BY oi.product_id, oi.product_name
         ORDER BY salesCount DESC
         LIMIT 5

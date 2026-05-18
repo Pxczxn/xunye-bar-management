@@ -1,16 +1,25 @@
+import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
-import Login from '../pages/Login';
-import Dashboard from '../pages/Dashboard';
-import Products from '../pages/Products';
-import Orders from '../pages/Orders';
-import Kitchen from '../pages/Kitchen';
-import Inventory from '../pages/Inventory';
-import Categories from '../pages/Categories';
-import Tables from '../pages/Tables';
-import Pos from '../pages/Pos';
-import Settings from '../pages/Settings';
-import Staff from '../pages/Staff';
+import { Loading } from '../components/Loading';
+
+const Login = lazy(() => import('../pages/Login'));
+const Dashboard = lazy(() => import('../pages/Dashboard'));
+const Products = lazy(() => import('../pages/Products'));
+const Orders = lazy(() => import('../pages/Orders'));
+const Kitchen = lazy(() => import('../pages/Kitchen'));
+const Inventory = lazy(() => import('../pages/Inventory'));
+const Categories = lazy(() => import('../pages/Categories'));
+const Tables = lazy(() => import('../pages/Tables'));
+const Pos = lazy(() => import('../pages/Pos'));
+const Settings = lazy(() => import('../pages/Settings'));
+const Staff = lazy(() => import('../pages/Staff'));
+const Members = lazy(() => import('../pages/Members'));
+const Activities = lazy(() => import('../pages/Activities'));
+
+function lazyPage(element: ReactNode) {
+  return <Suspense fallback={<Loading />}>{element}</Suspense>;
+}
 
 function getRole(): string {
   try { return JSON.parse(localStorage.getItem('user') || '{}').role || ''; } catch { return ''; }
@@ -42,7 +51,7 @@ const router = createBrowserRouter([
   {
     element: <GuestOnly />,
     children: [
-      { path: '/login', element: <Login /> },
+      { path: '/login', element: lazyPage(<Login />) },
     ],
   },
   {
@@ -54,19 +63,21 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to={defaultHome(getRole())} replace /> },
           { element: <RoleRoute roles={['BOSS', 'MANAGER']} />, children: [
-            { path: 'dashboard', element: <Dashboard /> },
-            { path: 'products', element: <Products /> },
-            { path: 'inventory', element: <Inventory /> },
-            { path: 'categories', element: <Categories /> },
+            { path: 'dashboard', element: lazyPage(<Dashboard />) },
+            { path: 'products', element: lazyPage(<Products />) },
+            { path: 'inventory', element: lazyPage(<Inventory />) },
+            { path: 'categories', element: lazyPage(<Categories />) },
+            { path: 'members', element: lazyPage(<Members />) },
+            { path: 'activities', element: lazyPage(<Activities />) },
           ]},
           { element: <RoleRoute roles={['BOSS']} />, children: [
-            { path: 'employees', element: <Staff /> },
-            { path: 'settings', element: <Settings /> },
+            { path: 'employees', element: lazyPage(<Staff />) },
+            { path: 'settings', element: lazyPage(<Settings />) },
           ]},
-          { path: 'kitchen', element: <Kitchen /> },
-          { path: 'orders', element: <Orders /> },
-          { path: 'pos', element: <Pos /> },
-          { path: 'tables', element: <Tables /> },
+          { path: 'kitchen', element: lazyPage(<Kitchen />) },
+          { path: 'orders', element: lazyPage(<Orders />) },
+          { path: 'pos', element: lazyPage(<Pos />) },
+          { path: 'tables', element: lazyPage(<Tables />) },
         ],
       },
     ],

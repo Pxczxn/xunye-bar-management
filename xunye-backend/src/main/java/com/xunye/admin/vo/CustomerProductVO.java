@@ -25,4 +25,6 @@ public class CustomerProductVO {
 
     private String description;
 
+    private String imageUrl;
+
 }

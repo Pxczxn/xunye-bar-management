@@ -44,7 +44,9 @@ CREATE TABLE product (
     updated_at  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     KEY idx_category_id (category_id),
-    KEY idx_status (status)
+    KEY idx_status (status),
+    KEY idx_status_stock (status, stock),
+    CONSTRAINT chk_stock CHECK (stock >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='酒水商品表';
 
 -- ----------------------------
@@ -110,6 +112,8 @@ CREATE TABLE order_info (
     order_no        VARCHAR(32)   NOT NULL COMMENT '订单编号',
     table_id        BIGINT        NOT NULL COMMENT '桌台ID',
     table_name      VARCHAR(64)   NOT NULL COMMENT '桌台名称',
+    customer_id     BIGINT        DEFAULT NULL COMMENT '顾客ID',
+    customer_phone  VARCHAR(20)   DEFAULT NULL COMMENT '顾客手机号',
     total_amount    DECIMAL(10,2) NOT NULL COMMENT '订单总金额',
     status          VARCHAR(16)   NOT NULL DEFAULT 'UNPAID' COMMENT '订单状态：UNPAID、PAID、CANCELLED、FINISHED',
     serve_status    VARCHAR(32)   NOT NULL DEFAULT 'PENDING' COMMENT '履约状态：PENDING待处理、MAKING制作中、FINISHED已完成',
@@ -123,8 +127,12 @@ CREATE TABLE order_info (
     PRIMARY KEY (id),
     UNIQUE KEY uk_order_no (order_no),
     KEY idx_table_id (table_id),
+    KEY idx_customer_id (customer_id),
+    KEY idx_customer_phone (customer_phone),
     KEY idx_status (status),
-    KEY idx_created_at (created_at)
+    KEY idx_created_at (created_at),
+    KEY idx_status_paid_at (status, paid_at),
+    KEY idx_serve_status (serve_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单表';
 
 -- ----------------------------
@@ -186,6 +194,68 @@ CREATE TABLE staff_user (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='员工用户表';
 
 -- ----------------------------
+-- 10. 顾客表
+-- ----------------------------
+DROP TABLE IF EXISTS customer;
+CREATE TABLE customer (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    phone VARCHAR(20) NOT NULL UNIQUE COMMENT '手机号',
+    nickname VARCHAR(50) COMMENT '昵称',
+    avatar VARCHAR(255) COMMENT '头像URL',
+    member_level VARCHAR(20) NOT NULL DEFAULT 'REGULAR' COMMENT '会员等级: REGULAR-普通, VIP-VIP, SVIP-超级VIP',
+    points DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '积分',
+    balance DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '余额',
+    total_orders INT NOT NULL DEFAULT 0 COMMENT '总订单数',
+    total_amount DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '总消费金额',
+    last_visit_at DATETIME COMMENT '最后访问时间',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_phone (phone),
+    INDEX idx_member_level (member_level)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='顾客表';
+
+-- ----------------------------
+-- 11. 顾客消息表
+-- ----------------------------
+DROP TABLE IF EXISTS customer_message;
+CREATE TABLE customer_message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    phone VARCHAR(20) COMMENT '顾客手机号',
+    title VARCHAR(100) NOT NULL COMMENT '消息标题',
+    content TEXT COMMENT '消息内容',
+    type VARCHAR(20) NOT NULL DEFAULT 'SYSTEM' COMMENT '消息类型: SYSTEM-系统消息, ORDER-订单消息, PROMOTION-促销消息',
+    is_read TINYINT NOT NULL DEFAULT 0 COMMENT '是否已读: 0-未读, 1-已读',
+    related_order_id BIGINT COMMENT '关联订单ID',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_phone (phone),
+    INDEX idx_created_at (created_at),
+    INDEX idx_is_read (is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='顾客消息表';
+
+-- ----------------------------
+-- 12. 操作日志表
+-- ----------------------------
+DROP TABLE IF EXISTS audit_log;
+CREATE TABLE audit_log (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    user_id BIGINT COMMENT '操作用户ID',
+    username VARCHAR(50) COMMENT '操作用户名',
+    operation VARCHAR(100) NOT NULL COMMENT '操作类型',
+    module VARCHAR(50) NOT NULL COMMENT '操作模块',
+    method VARCHAR(200) COMMENT '请求方法',
+    params TEXT COMMENT '请求参数',
+    ip VARCHAR(50) COMMENT '操作IP',
+    result VARCHAR(20) COMMENT '操作结果: SUCCESS/FAILURE',
+    error_msg TEXT COMMENT '错误信息',
+    execution_time INT COMMENT '执行时长(毫秒)',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_module (module),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
+
+-- ----------------------------
 -- 初始化分类数据
 -- ----------------------------
 INSERT INTO product_category (name, sort, status) VALUES
@@ -226,6 +296,63 @@ INSERT INTO product (category_id, name, brand, spec, price, cost_price, stock, s
 (4, '野格', 'Jägermeister', '70ml/杯', 60.00, 20.00, 45, 10, '杯', '德国草本利口酒', 'ON_SALE'),
 (6, '青柠', '新鲜水果', '个', 2.00, 0.50, 200, 50, '个', '鸡尾酒辅料', 'ON_SALE'),
 (5, '薯条', '寻野小食', '份', 25.00, 8.00, 999, 20, '份', '经典美式薯条', 'ON_SALE');
+
+-- ----------------------------
+-- 13. 活动管理表
+-- ----------------------------
+DROP TABLE IF EXISTS member_activity;
+CREATE TABLE member_activity (
+    id          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    title       VARCHAR(100)  NOT NULL COMMENT '活动标题',
+    description TEXT          COMMENT '活动描述',
+    type        VARCHAR(30)   NOT NULL DEFAULT 'DISCOUNT' COMMENT '活动类型: DISCOUNT-折扣, COUPON-优惠券, POINTS-积分, SPECIAL-特惠',
+    start_date  DATETIME      DEFAULT NULL COMMENT '开始时间',
+    end_date    DATETIME      DEFAULT NULL COMMENT '结束时间',
+    cover_image VARCHAR(500)  DEFAULT NULL COMMENT '封面图',
+    status      TINYINT       DEFAULT 0 COMMENT '状态: 0-草稿, 1-进行中, 2-已结束',
+    sort        INT           DEFAULT 0 COMMENT '排序',
+    deleted     TINYINT       DEFAULT 0 COMMENT '是否删除：0未删除，1已删除',
+    created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_type (type),
+    KEY idx_status (status),
+    KEY idx_start_date (start_date),
+    KEY idx_end_date (end_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='活动管理表';
+
+-- ----------------------------
+-- 14. 会员等级权益配置表
+-- ----------------------------
+DROP TABLE IF EXISTS member_level_config;
+CREATE TABLE member_level_config (
+    id          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    level       VARCHAR(20)  NOT NULL COMMENT '会员等级: REGULAR-普通, VIP-VIP, SVIP-超级VIP',
+    name        VARCHAR(50)  NOT NULL COMMENT '等级名称',
+    min_amount  DECIMAL(10,2) DEFAULT 0 COMMENT '升级所需累计消费',
+    discount    DECIMAL(5,2)  DEFAULT 100.00 COMMENT '折扣率(百分比, 100为无折扣)',
+    points_rate DECIMAL(5,2)  DEFAULT 100.00 COMMENT '积分倍率(百分比, 100为1倍)',
+    description VARCHAR(500) DEFAULT NULL COMMENT '等级描述',
+    sort        INT          DEFAULT 0 COMMENT '排序',
+    deleted     TINYINT      DEFAULT 0 COMMENT '是否删除',
+    created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_level (level)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员等级配置表';
+
+INSERT INTO member_level_config (level, name, min_amount, discount, points_rate, description, sort) VALUES
+('REGULAR', '普通会员', 0, 100.00, 100.00, '新注册默认会员等级', 1),
+('VIP', 'VIP会员', 1000, 95.00, 150.00, '累计消费满1000元自动升级', 2),
+('SVIP', 'SVIP会员', 5000, 90.00, 200.00, '累计消费满5000元自动升级', 3);
+
+-- ----------------------------
+-- 初始化活动示例数据
+-- ----------------------------
+INSERT INTO member_activity (title, description, type, start_date, end_date, status, sort) VALUES
+('周二特惠日', '每周二所有鸡尾酒享8折优惠', 'DISCOUNT', '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 1),
+('新客专享', '首次消费满100减20', 'COUPON', '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 2),
+('积分翻倍', '周末消费积分双倍送', 'POINTS', '2026-01-01 00:00:00', '2026-06-30 23:59:59', 1, 3);
 
 -- ----------------------------
 -- 初始化员工数据

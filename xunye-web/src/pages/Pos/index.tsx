@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Input, message } from 'antd';
+import { debounce } from 'lodash-es';
 import { useNavigate } from 'react-router-dom';
 import { getTablePage } from '@/api/table';
 import { getProductPage } from '@/api/product';
@@ -46,7 +47,23 @@ export default function PosPage() {
 
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
+
+  const debouncedSetKeyword = useMemo(
+    () => debounce((value: string) => setSearchKeyword(value), 300),
+    []
+  );
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    debouncedSetKeyword(value);
+  };
+
+  useEffect(() => {
+    return () => debouncedSetKeyword.cancel();
+  }, [debouncedSetKeyword]);
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [remark, setRemark] = useState('');
@@ -282,8 +299,8 @@ export default function PosPage() {
             </div>
             <Input
               placeholder="搜索商品名称"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
+              value={searchInput}
+              onChange={handleSearchChange}
               allowClear
               prefix={<Search size={14} className="text-text-weak" />}
               className="!bg-sidebar-bg !border-border-dark !text-text-main !placeholder-text-weak"

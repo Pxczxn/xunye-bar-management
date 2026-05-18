@@ -8,56 +8,36 @@ import com.xunye.admin.mapper.StaffUserMapper;
 import com.xunye.admin.service.AuthService;
 import com.xunye.admin.vo.LoginVO;
 import com.xunye.admin.vo.ProfileVO;
-import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final StaffUserMapper staffUserMapper;
     private final PasswordEncoder passwordEncoder;
+    private final RedisTemplate<String, Object> redisTemplate;
 
-    private static class TokenInfo {
-        final Long userId;
-        final String role;
-        final long expireAt;
+    private static final String TOKEN_PREFIX = "token:";
+    private static final long TOKEN_EXPIRE_HOURS = 8;
 
-        TokenInfo(Long userId, String role, long expireAt) {
+    static class TokenInfo {
+        public Long userId;
+        public String role;
+
+        public TokenInfo() {}
+
+        public TokenInfo(Long userId, String role) {
             this.userId = userId;
             this.role = role;
-            this.expireAt = expireAt;
         }
-    }
-
-    private static final ConcurrentHashMap<String, TokenInfo> TOKEN_STORE = new ConcurrentHashMap<>();
-    private static final long TOKEN_EXPIRE_MS = 8 * 60 * 60 * 1000L;
-
-    private static final ScheduledExecutorService TOKEN_CLEANER =
-            Executors.newSingleThreadScheduledExecutor(r -> {
-                Thread t = new Thread(r, "token-cleaner");
-                t.setDaemon(true);
-                return t;
-            });
-
-    public AuthServiceImpl(StaffUserMapper staffUserMapper, PasswordEncoder passwordEncoder) {
-        this.staffUserMapper = staffUserMapper;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    @PostConstruct
-    public void init() {
-        TOKEN_CLEANER.scheduleAtFixedRate(() -> {
-            long now = System.currentTimeMillis();
-            TOKEN_STORE.entrySet().removeIf(entry -> entry.getValue().expireAt < now);
-        }, 10, 10, TimeUnit.MINUTES);
     }
 
     @Override
@@ -75,20 +55,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(400, "该账号已被禁用，请联系管理员");
         }
 
-        String storedPassword = staffUser.getPassword();
-        boolean passwordMatch;
-
-        if (isBCryptHash(storedPassword)) {
-            passwordMatch = passwordEncoder.matches(loginDTO.getPassword(), storedPassword);
-        } else {
-            passwordMatch = storedPassword.equals(loginDTO.getPassword());
-            if (passwordMatch) {
-                staffUser.setPassword(passwordEncoder.encode(loginDTO.getPassword()));
-                staffUserMapper.updateById(staffUser);
-            }
-        }
-
-        if (!passwordMatch) {
+        if (!passwordEncoder.matches(loginDTO.getPassword(), staffUser.getPassword())) {
             throw new BusinessException(400, "账号或密码错误");
         }
 
@@ -96,8 +63,8 @@ public class AuthServiceImpl implements AuthService {
         staffUserMapper.updateById(staffUser);
 
         String token = "admin-token-" + UUID.randomUUID().toString().replace("-", "");
-        long expireAt = System.currentTimeMillis() + TOKEN_EXPIRE_MS;
-        TOKEN_STORE.put(token, new TokenInfo(staffUser.getId(), staffUser.getRole(), expireAt));
+        TokenInfo tokenInfo = new TokenInfo(staffUser.getId(), staffUser.getRole());
+        redisTemplate.opsForValue().set(TOKEN_PREFIX + token, tokenInfo, TOKEN_EXPIRE_HOURS, TimeUnit.HOURS);
 
         LoginVO loginVO = new LoginVO();
         loginVO.setToken(token);
@@ -119,10 +86,14 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(401, errorMsg);
         }
 
-        TokenInfo tokenInfo = TOKEN_STORE.get(token);
+        TokenInfo tokenInfo = (TokenInfo) redisTemplate.opsForValue().get(TOKEN_PREFIX + token);
+        if (tokenInfo == null) {
+            throw new BusinessException(401, "登录已过期，请重新登录");
+        }
+
         StaffUser staffUser = staffUserMapper.selectById(tokenInfo.userId);
         if (staffUser == null || staffUser.getStatus() == null || staffUser.getStatus() != 1) {
-            TOKEN_STORE.remove(token);
+            redisTemplate.delete(TOKEN_PREFIX + token);
             throw new BusinessException(401, "用户不存在或已被禁用");
         }
 
@@ -136,21 +107,17 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String validateToken(String token) {
-        TokenInfo info = TOKEN_STORE.get(token);
+        TokenInfo info = (TokenInfo) redisTemplate.opsForValue().get(TOKEN_PREFIX + token);
         if (info == null) {
             return "未登录，请先登录";
-        }
-        if (info.expireAt < System.currentTimeMillis()) {
-            TOKEN_STORE.remove(token);
-            return "登录已过期，请重新登录";
         }
         return null;
     }
 
     @Override
     public Long getUserIdByToken(String token) {
-        TokenInfo info = TOKEN_STORE.get(token);
-        if (info == null || info.expireAt < System.currentTimeMillis()) {
+        TokenInfo info = (TokenInfo) redisTemplate.opsForValue().get(TOKEN_PREFIX + token);
+        if (info == null) {
             return null;
         }
         return info.userId;
@@ -158,14 +125,15 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String getRoleByToken(String token) {
-        TokenInfo info = TOKEN_STORE.get(token);
-        if (info == null || info.expireAt < System.currentTimeMillis()) {
+        TokenInfo info = (TokenInfo) redisTemplate.opsForValue().get(TOKEN_PREFIX + token);
+        if (info == null) {
             return null;
         }
         return info.role;
     }
 
-    private boolean isBCryptHash(String password) {
-        return password != null && (password.startsWith("$2a$") || password.startsWith("$2b$"));
+    @Override
+    public void logout(String token) {
+        redisTemplate.delete(TOKEN_PREFIX + token);
     }
 }

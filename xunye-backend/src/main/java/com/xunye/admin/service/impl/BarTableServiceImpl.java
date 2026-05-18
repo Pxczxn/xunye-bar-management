@@ -1,6 +1,7 @@
 package com.xunye.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xunye.admin.common.BusinessException;
 import com.xunye.admin.dto.BarTableQueryDTO;
 import com.xunye.admin.dto.BarTableSaveDTO;
@@ -8,6 +9,9 @@ import com.xunye.admin.dto.BarTableStatusDTO;
 import com.xunye.admin.entity.BarTable;
 import com.xunye.admin.entity.OrderInfo;
 import com.xunye.admin.entity.TableArea;
+import com.xunye.admin.enums.OrderStatus;
+import com.xunye.admin.enums.ServeStatus;
+import com.xunye.admin.enums.TableStatus;
 import com.xunye.admin.mapper.BarTableMapper;
 import com.xunye.admin.mapper.OrderInfoMapper;
 import com.xunye.admin.mapper.TableAreaMapper;
@@ -53,10 +57,9 @@ public class BarTableServiceImpl implements BarTableService {
 
         wrapper.orderByDesc(BarTable::getCreatedAt);
 
-        long total = barTableMapper.selectCount(wrapper);
-
-        wrapper.last("LIMIT " + pageSize + " OFFSET " + (pageNum - 1) * pageSize);
-        List<BarTable> tables = barTableMapper.selectList(wrapper);
+        Page<BarTable> pageResult = barTableMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        List<BarTable> tables = pageResult.getRecords();
+        long total = pageResult.getTotal();
 
         // 批量查询区域名称
         List<Long> areaIds = tables.stream()
@@ -131,20 +134,20 @@ public class BarTableServiceImpl implements BarTableService {
         if (table == null) {
             throw new BusinessException(404, "桌台不存在");
         }
-        if ("DISABLED".equals(table.getStatus())) {
+        if (TableStatus.DISABLED.getCode().equals(table.getStatus())) {
             throw new BusinessException("停用桌台不能清台");
         }
 
         LambdaQueryWrapper<OrderInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(OrderInfo::getTableId, id)
-               .ne(OrderInfo::getStatus, "CANCELLED")
-               .ne(OrderInfo::getServeStatus, "FINISHED");
+               .ne(OrderInfo::getStatus, OrderStatus.CANCELLED.getCode())
+               .ne(OrderInfo::getServeStatus, ServeStatus.FINISHED.getCode());
         long activeOrderCount = orderInfoMapper.selectCount(wrapper);
         if (activeOrderCount > 0) {
             throw new BusinessException("该桌台仍有待处理或制作中的订单，不能清台");
         }
 
-        table.setStatus("EMPTY");
+        table.setStatus(TableStatus.EMPTY.getCode());
         barTableMapper.updateById(table);
     }
 

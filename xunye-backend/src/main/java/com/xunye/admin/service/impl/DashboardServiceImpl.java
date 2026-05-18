@@ -1,7 +1,6 @@
 package com.xunye.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.xunye.admin.entity.OrderInfo;
 import com.xunye.admin.entity.Product;
 import com.xunye.admin.mapper.OrderInfoMapper;
 import com.xunye.admin.mapper.OrderItemMapper;
@@ -24,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -49,24 +47,10 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDateTime todayStart = today.atStartOfDay();
         LocalDateTime todayEnd = today.atTime(LocalTime.MAX);
 
-        LambdaQueryWrapper<OrderInfo> paidWrapper = new LambdaQueryWrapper<>();
-        paidWrapper.in(OrderInfo::getStatus, "PAID", "FINISHED")
-                .eq(OrderInfo::getDeleted, 0)
-                .isNotNull(OrderInfo::getPaidAt)
-                .ge(OrderInfo::getPaidAt, todayStart)
-                .le(OrderInfo::getPaidAt, todayEnd);
-        List<OrderInfo> paidOrders = orderInfoMapper.selectList(paidWrapper);
-        BigDecimal todayRevenue = paidOrders.stream()
-                .map(OrderInfo::getTotalAmount)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        int paidCount = paidOrders.size();
-
-        LambdaQueryWrapper<OrderInfo> countWrapper = new LambdaQueryWrapper<>();
-        countWrapper.eq(OrderInfo::getDeleted, 0)
-                .ge(OrderInfo::getCreatedAt, todayStart)
-                .le(OrderInfo::getCreatedAt, todayEnd);
-        Long todayOrderCount = orderInfoMapper.selectCount(countWrapper);
+        Map<String, Object> summary = orderInfoMapper.selectTodaySummary(todayStart, todayEnd);
+        BigDecimal todayRevenue = toBigDecimal(summary.get("todayRevenue"));
+        int paidCount = toInt(summary.get("paidOrderCount"));
+        int todayOrderCount = toInt(summary.get("todayOrderCount"));
 
         BigDecimal avgValue = paidCount > 0
                 ? todayRevenue.divide(BigDecimal.valueOf(paidCount), 2, RoundingMode.HALF_UP)
@@ -80,7 +64,7 @@ public class DashboardServiceImpl implements DashboardService {
 
         DashboardSummaryVO vo = new DashboardSummaryVO();
         vo.setTodayRevenue(todayRevenue);
-        vo.setTodayOrderCount(todayOrderCount.intValue());
+        vo.setTodayOrderCount(todayOrderCount);
         vo.setAverageOrderValue(avgValue);
         vo.setInventoryWarningCount(warningCount.intValue());
         return vo;
@@ -92,8 +76,8 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDate startDate = today.minusDays(6);
 
         List<Map<String, Object>> dbResults = orderInfoMapper.selectSalesTrend(
-                startDate.format(DATE_FORMATTER),
-                today.format(DATE_FORMATTER)
+                startDate.atStartOfDay(),
+                today.atTime(LocalTime.MAX)
         );
 
         Map<String, Map<String, Object>> dbMap = dbResults.stream()
@@ -111,14 +95,8 @@ public class DashboardServiceImpl implements DashboardService {
             BigDecimal revenue = BigDecimal.ZERO;
             int orderCount = 0;
             if (data != null) {
-                Object revenueObj = data.get("revenue");
-                if (revenueObj != null) {
-                    revenue = new BigDecimal(revenueObj.toString());
-                }
-                Object countObj = data.get("orderCount");
-                if (countObj != null) {
-                    orderCount = ((Number) countObj).intValue();
-                }
+                revenue = toBigDecimal(data.get("revenue"));
+                orderCount = toInt(data.get("orderCount"));
             }
             result.add(new SalesTrendVO(dateStr, revenue, orderCount));
         }
@@ -156,6 +134,18 @@ public class DashboardServiceImpl implements DashboardService {
             String methodName = PAYMENT_METHOD_TEXT.getOrDefault(method, method);
             return new PaymentMethodVO(methodName, amount, percent);
         }).collect(Collectors.toList());
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal decimal = new BigDecimal(value.toString());
+        return decimal.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : decimal;
+    }
+
+    private int toInt(Object value) {
+        return value instanceof Number number ? number.intValue() : 0;
     }
 
 }

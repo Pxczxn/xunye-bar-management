@@ -52,4 +52,38 @@
         </if>
     </select>
 
+    <!-- 原子性扣减库存 -->
+    <update id="decreaseStock">
+        UPDATE product
+        SET stock = stock - #{quantity}
+        WHERE id = #{productId}
+          AND deleted = 0
+          AND stock >= #{quantity}
+    </update>
+
+    <!-- 原子性增加库存 -->
+    <update id="increaseStock">
+        UPDATE product
+        SET stock = stock + #{quantity}
+        WHERE id = #{productId}
+          AND deleted = 0
+    </update>
+
+    <!-- 原子性调整库存（delta 可正可负，保证不低于 0） -->
+    <update id="adjustStock">
+        UPDATE product
+        SET stock = stock + #{delta}
+        WHERE id = #{productId}
+          AND deleted = 0
+          AND stock + #{delta} >= 0
+    </update>
+
+    <!-- 原子性设置库存（盘点） -->
+    <update id="setStock">
+        UPDATE product
+        SET stock = #{stock}
+        WHERE id = #{productId}
+          AND deleted = 0
+    </update>
+
 </mapper>

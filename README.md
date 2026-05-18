@@ -1,6 +1,6 @@
 # XUNYE Bar Management System
 
-[中文文档](./README.zh-CN.md)
+[中文说明](README.zh-CN.md)
 
 XUNYE is a full-stack bar management system for daily store operations. It covers staff accounts, product and inventory management, table management, POS ordering, customer mini-program ordering, payment flow, kitchen workflow, order tracking, and business dashboard analytics.
 
@@ -19,7 +19,7 @@ XUNYE is a full-stack bar management system for daily store operations. It cover
 | --- | --- |
 | Backend | Java 21, Spring Boot 3, MyBatis-Plus, Maven |
 | Admin Web | React, TypeScript, Vite, Ant Design, ECharts |
-| Mini Program | WeChat Mini Program |
+| Mini Program | uni-app, Vue 3, TypeScript, Vite, UnoCSS |
 | Database | MySQL 8 |
 
 ## Project Structure
@@ -28,7 +28,7 @@ XUNYE is a full-stack bar management system for daily store operations. It cover
 XUNYE/
 ├── xunye-backend/   # Spring Boot backend service
 ├── xunye-web/       # React admin web app
-├── xunye-miniapp/   # WeChat Mini Program customer app
+├── xunye-miniapp/   # uni-app customer mini-program app
 ├── doc/             # Project documents
 └── README.zh-CN.md  # Chinese README
 ```
@@ -74,7 +74,13 @@ http://localhost:8847
 
 ### 4. Run Mini Program
 
-Open WeChat Developer Tools, import `xunye-miniapp/`, and update the backend `baseUrl` in the mini-program request utility if needed.
+```bash
+cd xunye-miniapp
+pnpm install
+pnpm dev:mp
+```
+
+Open WeChat Developer Tools and import `xunye-miniapp/dist/dev/mp-weixin`.
 
 ## Demo Accounts
 

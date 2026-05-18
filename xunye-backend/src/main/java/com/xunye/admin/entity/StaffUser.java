@@ -1,6 +1,7 @@
 package com.xunye.admin.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -26,6 +27,7 @@ public class StaffUser {
     /**
      * 密码
      */
+    @JsonIgnore
     private String password;
 
     /**

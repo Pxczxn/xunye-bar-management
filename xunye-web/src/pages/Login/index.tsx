@@ -5,8 +5,8 @@ import { login } from '@/api/auth';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('123456');
+  const [username, setUsername] = useState(import.meta.env.DEV ? 'admin' : '');
+  const [password, setPassword] = useState(import.meta.env.DEV ? '123456' : '');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: FormEvent) => {

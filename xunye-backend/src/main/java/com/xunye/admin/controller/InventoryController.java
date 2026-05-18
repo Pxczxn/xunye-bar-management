@@ -1,5 +1,6 @@
 package com.xunye.admin.controller;
 
+import com.xunye.admin.annotation.AuditLog;
 import com.xunye.admin.annotation.RequireRole;
 import com.xunye.admin.common.ApiResponse;
 import com.xunye.admin.dto.InventoryAdjustDTO;
@@ -35,6 +36,7 @@ public class InventoryController {
     }
 
     @PostMapping("/adjust")
+    @AuditLog(operation = "库存调整", module = "库存管理")
     public ApiResponse<Void> adjust(@Valid @RequestBody InventoryAdjustDTO dto) {
         inventoryService.adjust(dto);
         return ApiResponse.success("库存调整成功", null);
