@@ -1,7 +1,14 @@
 # IDE
 .idea/
 .vscode/
+.cursor/
 *.iml
+.classpath
+.project
+.factorypath
+.settings/
+*.swp
+*.swo
 
 # Build outputs
 dist/
@@ -9,15 +16,22 @@ build/
 target/
 out/
 coverage/
+.output/
 
 # Dependencies
 node_modules/
+.pnpm-store/
+.npm/
+.yarn/
 
 # Logs and temp files
 *.log
+.codex*.log
 logs/
 tmp/
 temp/
+.cache/
+.eslintcache
 
 # OS files
 .DS_Store
@@ -27,21 +41,18 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+env/
+
+# Tooling metadata
+.trae/
 
 doc/error.md
 
-# IDE
-.idea/
-.vscode/
+# Gemini
+.gemini/
 
-# Build output
-dist/
-build/
-target/
+# Claude
+.claude/
 
-# Node dependencies
-node_modules/
-
-# OS
-.DS_Store
-Thumbs.db
+# Runtime data
+xunye-backend/images/
