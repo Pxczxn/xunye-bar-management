@@ -36,7 +36,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public List<ProductSimpleVO> getSimpleList() {
         // 联表查询：商品 + 分类名称
-        List<ProductSimpleVO> list = productMapper.selectProductPage(null, null, null, 0, Integer.MAX_VALUE)
+        List<ProductSimpleVO> list = productMapper.selectProductPage(null, null, null, 0, 500)
                 .stream()
                 .map(vo -> {
                     ProductSimpleVO simple = new ProductSimpleVO();

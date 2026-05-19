@@ -298,7 +298,22 @@ INSERT INTO product (category_id, name, brand, spec, price, cost_price, stock, s
 (5, '薯条', '寻野小食', '份', 25.00, 8.00, 999, 20, '份', '经典美式薯条', 'ON_SALE');
 
 -- ----------------------------
--- 13. 活动管理表
+-- 13. 商品品牌表
+-- ----------------------------
+DROP TABLE IF EXISTS product_brand;
+CREATE TABLE product_brand (
+    id         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    name       VARCHAR(100) NOT NULL COMMENT '品牌名称',
+    sort       INT          DEFAULT 0 COMMENT '排序',
+    deleted    TINYINT      DEFAULT 0 COMMENT '是否删除：0未删除，1已删除',
+    created_at DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品品牌表';
+
+-- ----------------------------
+-- 14. 活动管理表
 -- ----------------------------
 DROP TABLE IF EXISTS member_activity;
 CREATE TABLE member_activity (
@@ -322,7 +337,7 @@ CREATE TABLE member_activity (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='活动管理表';
 
 -- ----------------------------
--- 14. 会员等级权益配置表
+-- 15. 会员等级权益配置表
 -- ----------------------------
 DROP TABLE IF EXISTS member_level_config;
 CREATE TABLE member_level_config (

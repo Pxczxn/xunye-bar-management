@@ -116,7 +116,8 @@ public class CustomerServiceImpl implements CustomerService {
     public List<CustomerProductVO> listProducts(Long categoryId, String keyword) {
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Product::getStatus, "ON_SALE")
-               .gt(Product::getStock, 0);
+               .gt(Product::getStock, 0)
+               .last("LIMIT 200");
         if (categoryId != null) {
             wrapper.eq(Product::getCategoryId, categoryId);
         }
@@ -177,9 +178,6 @@ public class CustomerServiceImpl implements CustomerService {
             if (!"ON_SALE".equals(product.getStatus())) {
                 throw new BusinessException("商品 [" + product.getName() + "] 已下架");
             }
-            if (product.getStock() < itemDTO.getQuantity()) {
-                throw new BusinessException("商品 [" + product.getName() + "] 库存不足，当前库存: " + product.getStock());
-            }
 
             BigDecimal itemAmount = product.getPrice().multiply(BigDecimal.valueOf(itemDTO.getQuantity()));
             totalAmount = totalAmount.add(itemAmount);
@@ -196,8 +194,10 @@ public class CustomerServiceImpl implements CustomerService {
 
         for (var itemDTO : dto.getItems()) {
             Product product = productMap.get(itemDTO.getProductId());
-            product.setStock(product.getStock() - itemDTO.getQuantity());
-            productMapper.updateById(product);
+            int rows = productMapper.decreaseStock(product.getId(), itemDTO.getQuantity());
+            if (rows == 0) {
+                throw new BusinessException("商品 [" + product.getName() + "] 库存扣减失败，请稍后重试");
+            }
         }
 
         OrderInfo order = new OrderInfo();

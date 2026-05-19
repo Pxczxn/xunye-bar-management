@@ -212,13 +212,13 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void payOrder(Long id, OrderPayDTO dto) {
-        if (orderInfoMapper.selectById(id) == null) {
-            throw new BusinessException(404, "订单不存在");
-        }
         int updated = orderInfoMapper.payOrderConditional(id,
                 OrderStatus.UNPAID.getCode(), OrderStatus.PAID.getCode(),
                 dto.getPaymentMethod(), LocalDateTime.now());
         if (updated == 0) {
+            if (orderInfoMapper.selectById(id) == null) {
+                throw new BusinessException(404, "订单不存在");
+            }
             throw new BusinessException("当前订单状态不允许支付，仅未支付订单可支付");
         }
     }

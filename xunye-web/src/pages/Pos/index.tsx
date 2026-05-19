@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Input, message } from 'antd';
-import { debounce } from 'lodash-es';
 import { useNavigate } from 'react-router-dom';
 import { getTablePage } from '@/api/table';
 import { getProductPage } from '@/api/product';
@@ -50,20 +49,18 @@ export default function PosPage() {
   const [searchInput, setSearchInput] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  const debouncedSetKeyword = useMemo(
-    () => debounce((value: string) => setSearchKeyword(value), 300),
-    []
-  );
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchInput(value);
-    debouncedSetKeyword(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => setSearchKeyword(value), 300);
   };
 
   useEffect(() => {
-    return () => debouncedSetKeyword.cancel();
-  }, [debouncedSetKeyword]);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, []);
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [remark, setRemark] = useState('');
