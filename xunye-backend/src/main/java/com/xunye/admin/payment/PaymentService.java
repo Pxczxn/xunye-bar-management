@@ -2,14 +2,20 @@ package com.xunye.admin.payment;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xunye.admin.common.BusinessException;
+import com.xunye.admin.entity.Customer;
+import com.xunye.admin.entity.CustomerPointsRecord;
 import com.xunye.admin.entity.OrderInfo;
 import com.xunye.admin.entity.PaymentOrder;
+import com.xunye.admin.mapper.CustomerMapper;
+import com.xunye.admin.mapper.CustomerPointsRecordMapper;
 import com.xunye.admin.mapper.OrderInfoMapper;
 import com.xunye.admin.mapper.PaymentOrderMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Service
@@ -19,6 +25,8 @@ public class PaymentService {
     private final PaymentProvider paymentProvider;
     private final PaymentOrderMapper paymentOrderMapper;
     private final OrderInfoMapper orderInfoMapper;
+    private final CustomerMapper customerMapper;
+    private final CustomerPointsRecordMapper customerPointsRecordMapper;
 
     @Transactional(rollbackFor = Exception.class)
     public PaymentOrder createPayment(String orderNo) {
@@ -78,6 +86,7 @@ public class PaymentService {
         order.setPaymentMethod(toBusinessPaymentMethod(po.getProvider()));
         order.setPaidAt(po.getPaidAt());
         orderInfoMapper.updateById(order);
+        syncCustomerAfterPayment(order);
     }
 
     public PaymentOrder getPaymentOrder(String paymentNo) {
@@ -99,5 +108,46 @@ public class PaymentService {
             return "WECHAT";
         }
         return provider;
+    }
+
+    private void syncCustomerAfterPayment(OrderInfo order) {
+        if (!StringUtils.hasText(order.getCustomerPhone())) {
+            return;
+        }
+        Customer customer = customerMapper.selectOne(
+                new LambdaQueryWrapper<Customer>().eq(Customer::getPhone, order.getCustomerPhone()));
+        if (customer == null) {
+            customer = new Customer();
+            customer.setCustomerNo("XY" + LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+            customer.setPhone(order.getCustomerPhone());
+            customer.setNickname("寻野会员");
+            customer.setMemberLevel("REGULAR");
+            customer.setPoints(BigDecimal.ZERO);
+            customer.setBalance(BigDecimal.ZERO);
+            customer.setTotalOrders(0);
+            customer.setTotalAmount(BigDecimal.ZERO);
+            customer.setCreatedAt(LocalDateTime.now());
+        }
+        BigDecimal paidAmount = order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount();
+        int earnedPoints = paidAmount.intValue();
+        customer.setPoints((customer.getPoints() == null ? BigDecimal.ZERO : customer.getPoints()).add(BigDecimal.valueOf(earnedPoints)));
+        customer.setTotalOrders((customer.getTotalOrders() == null ? 0 : customer.getTotalOrders()) + 1);
+        customer.setTotalAmount((customer.getTotalAmount() == null ? BigDecimal.ZERO : customer.getTotalAmount()).add(paidAmount));
+        customer.setLastVisitAt(order.getPaidAt() == null ? LocalDateTime.now() : order.getPaidAt());
+        customer.setUpdatedAt(LocalDateTime.now());
+        if (customer.getId() == null) {
+            customerMapper.insert(customer);
+        } else {
+            customerMapper.updateById(customer);
+        }
+        if (earnedPoints > 0) {
+            CustomerPointsRecord record = new CustomerPointsRecord();
+            record.setPhone(order.getCustomerPhone());
+            record.setTitle("完成消费");
+            record.setAmount(earnedPoints);
+            record.setRelatedOrderNo(order.getOrderNo());
+            record.setCreatedAt(LocalDateTime.now());
+            customerPointsRecordMapper.insert(record);
+        }
     }
 }

@@ -115,6 +115,9 @@ CREATE TABLE order_info (
     customer_id     BIGINT        DEFAULT NULL COMMENT '顾客ID',
     customer_phone  VARCHAR(20)   DEFAULT NULL COMMENT '顾客手机号',
     total_amount    DECIMAL(10,2) NOT NULL COMMENT '订单总金额',
+    original_amount DECIMAL(10,2) DEFAULT NULL COMMENT '订单原价',
+    discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '优惠金额',
+    coupon_id       BIGINT        DEFAULT NULL COMMENT '使用优惠券ID',
     status          VARCHAR(16)   NOT NULL DEFAULT 'UNPAID' COMMENT '订单状态：UNPAID、PAID、CANCELLED、FINISHED',
     serve_status    VARCHAR(32)   NOT NULL DEFAULT 'PENDING' COMMENT '履约状态：PENDING待处理、MAKING制作中、FINISHED已完成',
     payment_method  VARCHAR(16)   DEFAULT NULL COMMENT '支付方式：WECHAT微信、ALIPAY支付宝、CASH现金',
@@ -199,9 +202,15 @@ CREATE TABLE staff_user (
 DROP TABLE IF EXISTS customer;
 CREATE TABLE customer (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    customer_no VARCHAR(32) NOT NULL COMMENT '顾客唯一编号',
+    openid VARCHAR(64) DEFAULT NULL COMMENT '微信openid',
     phone VARCHAR(20) NOT NULL UNIQUE COMMENT '手机号',
     nickname VARCHAR(50) COMMENT '昵称',
     avatar VARCHAR(255) COMMENT '头像URL',
+    birthday DATE COMMENT '生日',
+    gender VARCHAR(20) COMMENT '性别',
+    favorite_taste VARCHAR(100) COMMENT '口味偏好',
+    favorite_table VARCHAR(50) COMMENT '常用桌台',
     member_level VARCHAR(20) NOT NULL DEFAULT 'REGULAR' COMMENT '会员等级: REGULAR-普通, VIP-VIP, SVIP-超级VIP',
     points DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '积分',
     balance DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '余额',
@@ -210,6 +219,8 @@ CREATE TABLE customer (
     last_visit_at DATETIME COMMENT '最后访问时间',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_customer_no (customer_no),
+    UNIQUE KEY uk_openid (openid),
     INDEX idx_phone (phone),
     INDEX idx_member_level (member_level)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='顾客表';
@@ -217,6 +228,36 @@ CREATE TABLE customer (
 -- ----------------------------
 -- 11. 顾客消息表
 -- ----------------------------
+DROP TABLE IF EXISTS customer_coupon;
+CREATE TABLE customer_coupon (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '优惠券ID',
+    phone VARCHAR(20) NOT NULL COMMENT '顾客手机号',
+    title VARCHAR(64) NOT NULL COMMENT '优惠券标题',
+    rule_text VARCHAR(128) DEFAULT NULL COMMENT '使用规则',
+    discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '优惠金额',
+    min_amount DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '最低使用金额',
+    used TINYINT NOT NULL DEFAULT 0 COMMENT '是否已使用',
+    valid_until DATE DEFAULT NULL COMMENT '有效期',
+    used_at DATETIME DEFAULT NULL COMMENT '使用时间',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_phone (phone),
+    KEY idx_used (used)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='顾客优惠券表';
+
+DROP TABLE IF EXISTS customer_points_record;
+CREATE TABLE customer_points_record (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '积分记录ID',
+    phone VARCHAR(20) NOT NULL COMMENT '顾客手机号',
+    title VARCHAR(64) NOT NULL COMMENT '记录标题',
+    amount INT NOT NULL COMMENT '积分变动',
+    related_order_no VARCHAR(32) DEFAULT NULL COMMENT '关联订单号',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_phone (phone),
+    KEY idx_order_no (related_order_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='顾客积分记录表';
+
 DROP TABLE IF EXISTS customer_message;
 CREATE TABLE customer_message (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

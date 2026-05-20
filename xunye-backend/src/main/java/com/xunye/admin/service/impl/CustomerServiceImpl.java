@@ -2,6 +2,8 @@ package com.xunye.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xunye.admin.common.BusinessException;
+import com.xunye.admin.dto.CustomerProfileUpdateDTO;
+import com.xunye.admin.dto.CustomerWxLoginDTO;
 import com.xunye.admin.dto.OrderCreateDTO;
 import com.xunye.admin.entity.*;
 import com.xunye.admin.mapper.*;
@@ -9,12 +11,18 @@ import com.xunye.admin.service.CustomerService;
 import com.xunye.admin.vo.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -35,7 +43,12 @@ public class CustomerServiceImpl implements CustomerService {
     private final OrderItemMapper orderItemMapper;
     private final CustomerMapper customerMapper;
     private final CustomerMessageMapper customerMessageMapper;
+    private final CustomerCouponMapper customerCouponMapper;
+    private final CustomerPointsRecordMapper customerPointsRecordMapper;
     private final MemberActivityMapper memberActivityMapper;
+
+    @Value("${file.upload.base-path}")
+    private String fileUploadBasePath;
 
     @Override
     public ShopInfoVO getShopInfo() {
@@ -204,7 +217,17 @@ public class CustomerServiceImpl implements CustomerService {
         order.setOrderNo(generateOrderNo());
         order.setTableId(table.getId());
         order.setTableName(table.getName());
-        order.setTotalAmount(totalAmount);
+        order.setCustomerPhone(dto.getPhone());
+        Customer customer = ensureCustomer(dto.getPhone());
+        if (customer != null) {
+            order.setCustomerId(customer.getId());
+        }
+        BigDecimal discountAmount = resolveDiscount(dto.getPhone(), dto.getCouponId(), totalAmount);
+        BigDecimal payableAmount = totalAmount.subtract(discountAmount).max(BigDecimal.ZERO);
+        order.setOriginalAmount(totalAmount);
+        order.setDiscountAmount(discountAmount);
+        order.setCouponId(dto.getCouponId());
+        order.setTotalAmount(payableAmount);
         order.setStatus("UNPAID");
         order.setServeStatus("PENDING");
         order.setSource("CUSTOMER_MINI");
@@ -223,6 +246,8 @@ public class CustomerServiceImpl implements CustomerService {
         CustomerOrderSubmitVO vo = new CustomerOrderSubmitVO();
         vo.setOrderNo(order.getOrderNo());
         vo.setTotalAmount(order.getTotalAmount());
+        vo.setOriginalAmount(order.getOriginalAmount());
+        vo.setDiscountAmount(order.getDiscountAmount());
         vo.setStatus(order.getStatus());
         return vo;
     }
@@ -315,6 +340,9 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setTableId(order.getTableId());
         vo.setTableName(order.getTableName());
         vo.setTotalAmount(order.getTotalAmount());
+        vo.setOriginalAmount(order.getOriginalAmount() == null ? order.getTotalAmount() : order.getOriginalAmount());
+        vo.setDiscountAmount(order.getDiscountAmount() == null ? BigDecimal.ZERO : order.getDiscountAmount());
+        vo.setCouponId(order.getCouponId());
         vo.setStatus(order.getStatus());
         vo.setServeStatus(order.getServeStatus());
         vo.setPaymentMethod(order.getPaymentMethod());
@@ -415,29 +443,157 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public CustomerInfoVO getCustomerMemberInfo(String phone) {
-        CustomerInfoVO vo = new CustomerInfoVO();
         if (!StringUtils.hasText(phone)) {
-            return vo;
+            return new CustomerInfoVO();
         }
         LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Customer::getPhone, phone);
         Customer customer = customerMapper.selectOne(wrapper);
         if (customer == null) {
-            return vo;
+            Customer created = createDefaultCustomer(phone);
+            customerMapper.insert(created);
+            return toCustomerInfoVO(created);
         }
-        vo.setId(customer.getId());
-        vo.setPhone(customer.getPhone());
-        vo.setNickname(customer.getNickname());
-        vo.setAvatar(customer.getAvatar());
-        vo.setMemberLevel(customer.getMemberLevel());
-        vo.setMemberLevelName(getLevelName(customer.getMemberLevel()));
-        vo.setPoints(customer.getPoints() == null ? BigDecimal.ZERO : customer.getPoints());
-        vo.setBalance(customer.getBalance() == null ? BigDecimal.ZERO : customer.getBalance());
-        vo.setTotalOrders(customer.getTotalOrders() == null ? 0 : customer.getTotalOrders());
-        vo.setTotalAmount(customer.getTotalAmount() == null ? BigDecimal.ZERO : customer.getTotalAmount());
-        vo.setLastVisitAt(customer.getLastVisitAt());
-        vo.setCreatedAt(customer.getCreatedAt());
-        return vo;
+        return toCustomerInfoVO(customer);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CustomerInfoVO updateCustomerProfile(CustomerProfileUpdateDTO dto) {
+        LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Customer::getPhone, dto.getPhone());
+        Customer customer = customerMapper.selectOne(wrapper);
+        if (customer == null) {
+            customer = createDefaultCustomer(dto.getPhone());
+            customer.setCreatedAt(LocalDateTime.now());
+        }
+
+        if (StringUtils.hasText(dto.getNickname())) {
+            customer.setNickname(dto.getNickname());
+        }
+        customer.setAvatar(dto.getAvatar());
+        customer.setBirthday(dto.getBirthday());
+        customer.setGender(dto.getGender());
+        customer.setFavoriteTaste(dto.getFavoriteTaste());
+        customer.setFavoriteTable(dto.getFavoriteTable());
+        customer.setUpdatedAt(LocalDateTime.now());
+
+        if (customer.getId() == null) {
+            customerMapper.insert(customer);
+        } else {
+            customerMapper.updateById(customer);
+        }
+        return toCustomerInfoVO(customer);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CustomerInfoVO wxLogin(CustomerWxLoginDTO dto) {
+        if (!StringUtils.hasText(dto.getCode())) {
+            throw new BusinessException("微信登录 code 不能为空");
+        }
+        String openid = "mock_openid_" + dto.getCode();
+        LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Customer::getOpenid, openid);
+        Customer customer = customerMapper.selectOne(wrapper);
+        if (customer == null) {
+            customer = createDefaultCustomer("WX" + System.currentTimeMillis());
+            customer.setOpenid(openid);
+            customerMapper.insert(customer);
+        }
+        if (StringUtils.hasText(dto.getNickname())) {
+            customer.setNickname(dto.getNickname());
+        }
+        if (StringUtils.hasText(dto.getAvatar())) {
+            customer.setAvatar(dto.getAvatar());
+        }
+        customer.setUpdatedAt(LocalDateTime.now());
+        customerMapper.updateById(customer);
+        return toCustomerInfoVO(customer);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String uploadAvatar(String phone, MultipartFile file) {
+        if (!StringUtils.hasText(phone)) {
+            throw new BusinessException("手机号不能为空");
+        }
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("文件不能为空");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new BusinessException("只能上传图片文件");
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new BusinessException("头像不能超过5MB");
+        }
+        try {
+            String extension = resolveExtension(file.getOriginalFilename(), contentType);
+            String filename = UUID.randomUUID() + extension;
+            Path uploadPath = Paths.get(fileUploadBasePath, "avatars");
+            Files.createDirectories(uploadPath);
+            file.transferTo(uploadPath.resolve(filename).toFile());
+            String avatarUrl = "/images/avatars/" + filename;
+            Customer customer = ensureCustomer(phone);
+            customer.setAvatar(avatarUrl);
+            customer.setUpdatedAt(LocalDateTime.now());
+            customerMapper.updateById(customer);
+            return avatarUrl;
+        } catch (IOException e) {
+            throw new BusinessException("头像上传失败");
+        }
+    }
+
+    @Override
+    public List<CustomerCouponVO> listCoupons(String phone) {
+        if (!StringUtils.hasText(phone)) {
+            return Collections.emptyList();
+        }
+        ensureDefaultCoupons(phone);
+        LambdaQueryWrapper<CustomerCoupon> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CustomerCoupon::getPhone, phone)
+                .orderByAsc(CustomerCoupon::getUsed)
+                .orderByDesc(CustomerCoupon::getCreatedAt);
+        return customerCouponMapper.selectList(wrapper).stream()
+                .map(this::toCustomerCouponVO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CustomerCouponVO exchangePointsForCoupon(String phone, Long rewardId) {
+        if (!StringUtils.hasText(phone)) {
+            throw new BusinessException("手机号不能为空");
+        }
+        Customer customer = ensureCustomer(phone);
+        RewardDefinition reward = getReward(rewardId);
+        int points = customer.getPoints() == null ? 0 : customer.getPoints().intValue();
+        if (points < reward.cost()) {
+            throw new BusinessException("积分不足");
+        }
+        customer.setPoints(BigDecimal.valueOf(points - reward.cost()));
+        customer.setUpdatedAt(LocalDateTime.now());
+        customerMapper.updateById(customer);
+
+        CustomerCoupon coupon = createCoupon(phone, reward.title(), reward.rule(), reward.discountAmount(), reward.minAmount(), LocalDate.now().plusDays(45));
+        customerCouponMapper.insert(coupon);
+        insertPointsRecord(phone, "兑换优惠券", -reward.cost(), null);
+        return toCustomerCouponVO(coupon);
+    }
+
+    @Override
+    public List<CustomerPointsRecordVO> listPointsRecords(String phone) {
+        if (!StringUtils.hasText(phone)) {
+            return Collections.emptyList();
+        }
+        LambdaQueryWrapper<CustomerPointsRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CustomerPointsRecord::getPhone, phone)
+                .orderByDesc(CustomerPointsRecord::getCreatedAt)
+                .last("LIMIT 50");
+        return customerPointsRecordMapper.selectList(wrapper).stream()
+                .map(this::toCustomerPointsRecordVO)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -518,6 +674,163 @@ public class CustomerServiceImpl implements CustomerService {
             case "SVIP" -> "SVIP会员";
             default -> "普通会员";
         };
+    }
+
+    private Customer createDefaultCustomer(String phone) {
+        Customer customer = new Customer();
+        customer.setCustomerNo(generateCustomerNo());
+        customer.setPhone(phone);
+        customer.setNickname("寻野会员");
+        customer.setMemberLevel("REGULAR");
+        customer.setPoints(BigDecimal.ZERO);
+        customer.setBalance(BigDecimal.ZERO);
+        customer.setTotalOrders(0);
+        customer.setTotalAmount(BigDecimal.ZERO);
+        customer.setCreatedAt(LocalDateTime.now());
+        customer.setUpdatedAt(LocalDateTime.now());
+        return customer;
+    }
+
+    private String generateCustomerNo() {
+        return "XY" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + String.format("%04d", new Random().nextInt(10000));
+    }
+
+    private String resolveExtension(String originalFilename, String contentType) {
+        if (StringUtils.hasText(originalFilename) && originalFilename.contains(".")) {
+            return originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+        if ("image/png".equals(contentType)) return ".png";
+        if ("image/webp".equals(contentType)) return ".webp";
+        return ".jpg";
+    }
+
+    private Customer ensureCustomer(String phone) {
+        if (!StringUtils.hasText(phone)) {
+            return null;
+        }
+        LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Customer::getPhone, phone);
+        Customer customer = customerMapper.selectOne(wrapper);
+        if (customer != null) {
+            return customer;
+        }
+        Customer created = createDefaultCustomer(phone);
+        customerMapper.insert(created);
+        return created;
+    }
+
+    private BigDecimal resolveDiscount(String phone, Long couponId, BigDecimal totalAmount) {
+        if (couponId == null) {
+            return BigDecimal.ZERO;
+        }
+        CustomerCoupon coupon = customerCouponMapper.selectById(couponId);
+        if (coupon == null || !Objects.equals(coupon.getPhone(), phone)) {
+            throw new BusinessException("优惠券不存在");
+        }
+        if (coupon.getUsed() != null && coupon.getUsed() == 1) {
+            throw new BusinessException("优惠券已使用");
+        }
+        if (coupon.getValidUntil() != null && coupon.getValidUntil().isBefore(LocalDate.now())) {
+            throw new BusinessException("优惠券已过期");
+        }
+        if (coupon.getMinAmount() != null && totalAmount.compareTo(coupon.getMinAmount()) < 0) {
+            throw new BusinessException("未达到优惠券使用门槛");
+        }
+        coupon.setUsed(1);
+        coupon.setUsedAt(LocalDateTime.now());
+        customerCouponMapper.updateById(coupon);
+        return coupon.getDiscountAmount() == null ? BigDecimal.ZERO : coupon.getDiscountAmount().min(totalAmount);
+    }
+
+    private void ensureDefaultCoupons(String phone) {
+        Long count = customerCouponMapper.selectCount(new LambdaQueryWrapper<CustomerCoupon>().eq(CustomerCoupon::getPhone, phone));
+        if (count != null && count > 0) {
+            return;
+        }
+        customerCouponMapper.insert(createCoupon(phone, "满 99 减 10", "全场酒水可用", new BigDecimal("10"), new BigDecimal("99"), LocalDate.now().plusDays(40)));
+        customerCouponMapper.insert(createCoupon(phone, "小食立减 18", "佐酒小食可用", new BigDecimal("18"), BigDecimal.ZERO, LocalDate.now().plusDays(30)));
+        customerCouponMapper.insert(createCoupon(phone, "特调第二杯半价", "招牌特调可用", new BigDecimal("34"), new BigDecimal("68"), LocalDate.now().plusDays(20)));
+    }
+
+    private CustomerCoupon createCoupon(String phone, String title, String rule, BigDecimal discountAmount, BigDecimal minAmount, LocalDate validUntil) {
+        CustomerCoupon coupon = new CustomerCoupon();
+        coupon.setPhone(phone);
+        coupon.setTitle(title);
+        coupon.setRuleText(rule);
+        coupon.setDiscountAmount(discountAmount);
+        coupon.setMinAmount(minAmount);
+        coupon.setValidUntil(validUntil);
+        coupon.setUsed(0);
+        coupon.setCreatedAt(LocalDateTime.now());
+        return coupon;
+    }
+
+    private CustomerCouponVO toCustomerCouponVO(CustomerCoupon coupon) {
+        CustomerCouponVO vo = new CustomerCouponVO();
+        vo.setId(coupon.getId());
+        vo.setTitle(coupon.getTitle());
+        vo.setRule(coupon.getRuleText());
+        vo.setDiscountAmount(coupon.getDiscountAmount());
+        vo.setMinAmount(coupon.getMinAmount());
+        vo.setUsed(coupon.getUsed() != null && coupon.getUsed() == 1);
+        vo.setValidUntil(coupon.getValidUntil());
+        return vo;
+    }
+
+    private CustomerPointsRecordVO toCustomerPointsRecordVO(CustomerPointsRecord record) {
+        CustomerPointsRecordVO vo = new CustomerPointsRecordVO();
+        vo.setId(record.getId());
+        vo.setTitle(record.getTitle());
+        vo.setAmount(record.getAmount());
+        vo.setRelatedOrderNo(record.getRelatedOrderNo());
+        vo.setCreatedAt(record.getCreatedAt());
+        return vo;
+    }
+
+    private void insertPointsRecord(String phone, String title, Integer amount, String orderNo) {
+        if (!StringUtils.hasText(phone) || amount == null || amount == 0) {
+            return;
+        }
+        CustomerPointsRecord record = new CustomerPointsRecord();
+        record.setPhone(phone);
+        record.setTitle(title);
+        record.setAmount(amount);
+        record.setRelatedOrderNo(orderNo);
+        record.setCreatedAt(LocalDateTime.now());
+        customerPointsRecordMapper.insert(record);
+    }
+
+    private RewardDefinition getReward(Long rewardId) {
+        if (Objects.equals(rewardId, 2L)) {
+            return new RewardDefinition(2L, "小食抵扣券", "任选小食立减 18", 120, new BigDecimal("18"), BigDecimal.ZERO);
+        }
+        return new RewardDefinition(1L, "满 99 减 10", "下次到店消费可用", 80, new BigDecimal("10"), new BigDecimal("99"));
+    }
+
+    private record RewardDefinition(Long id, String title, String rule, int cost, BigDecimal discountAmount, BigDecimal minAmount) {
+    }
+
+    private CustomerInfoVO toCustomerInfoVO(Customer customer) {
+        CustomerInfoVO vo = new CustomerInfoVO();
+        vo.setId(customer.getId());
+        vo.setCustomerNo(customer.getCustomerNo());
+        vo.setOpenid(customer.getOpenid());
+        vo.setPhone(customer.getPhone());
+        vo.setNickname(customer.getNickname());
+        vo.setAvatar(customer.getAvatar());
+        vo.setBirthday(customer.getBirthday());
+        vo.setGender(customer.getGender());
+        vo.setFavoriteTaste(customer.getFavoriteTaste());
+        vo.setFavoriteTable(customer.getFavoriteTable());
+        vo.setMemberLevel(customer.getMemberLevel());
+        vo.setMemberLevelName(getLevelName(customer.getMemberLevel()));
+        vo.setPoints(customer.getPoints() == null ? BigDecimal.ZERO : customer.getPoints());
+        vo.setBalance(customer.getBalance() == null ? BigDecimal.ZERO : customer.getBalance());
+        vo.setTotalOrders(customer.getTotalOrders() == null ? 0 : customer.getTotalOrders());
+        vo.setTotalAmount(customer.getTotalAmount() == null ? BigDecimal.ZERO : customer.getTotalAmount());
+        vo.setLastVisitAt(customer.getLastVisitAt());
+        vo.setCreatedAt(customer.getCreatedAt());
+        return vo;
     }
 
     private Map<Long, String> buildAreaMap(List<BarTable> tables) {

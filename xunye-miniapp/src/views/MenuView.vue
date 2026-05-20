@@ -1,38 +1,73 @@
 <script lang="ts" setup>
-import { computed, nextTick, ref } from 'vue'
-import { categories, products, useXunyeStore } from '@/store'
+import type { CustomerCategoryVO, CustomerProductVO } from '@/api/customer'
+import type { MenuProduct } from '@/store'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { listCustomerCategories, listCustomerProducts } from '@/api/customer'
 import { useShellState } from '@/composables/useShellState'
+import { useXunyeStore } from '@/store'
 
 const store = useXunyeStore()
 const { push, showToast, consumeMenuAnchorProductId } = useShellState()
 const allCategoryId = 0
-const categoryOptions = [{ id: allCategoryId, name: '全部' }, ...categories]
+const categories = ref<CustomerCategoryVO[]>([])
+const products = ref<MenuProduct[]>([])
 const activeCategoryId = ref(allCategoryId)
 const scrollIntoViewId = ref('')
-const currentCategoryName = computed(() => categoryOptions.find(item => item.id === activeCategoryId.value)?.name)
+const categoryOptions = computed(() => [{ id: allCategoryId, name: '全部' }, ...categories.value])
+const currentCategoryName = computed(() => categoryOptions.value.find(item => item.id === activeCategoryId.value)?.name)
 const visibleProducts = computed(() => {
-  if (activeCategoryId.value === allCategoryId) return products
-  return products.filter(item => item.categoryId === activeCategoryId.value)
+  if (activeCategoryId.value === allCategoryId)
+    return products.value
+  return products.value.filter(item => item.categoryId === activeCategoryId.value)
 })
 
-nextTick(() => {
+onMounted(async () => {
+  await fetchMenu()
   const productId = consumeMenuAnchorProductId()
-  if (!productId) return
+  if (!productId)
+    return
   activeCategoryId.value = allCategoryId
   nextTick(() => {
     scrollIntoViewId.value = `menu-product-${productId}`
   })
 })
 
+function toMenuProduct(product: CustomerProductVO): MenuProduct {
+  return {
+    id: product.id,
+    categoryId: product.categoryId,
+    name: product.name,
+    description: product.description || '',
+    price: Number(product.price || 0),
+    image: product.imageUrl || '/static/images/products/xunye-mist.png',
+  }
+}
+
+async function fetchMenu() {
+  try {
+    const [categoryList, productList] = await Promise.all([
+      listCustomerCategories(),
+      listCustomerProducts(),
+    ])
+    categories.value = categoryList
+    products.value = productList.map(toMenuProduct)
+  }
+  catch {
+    showToast('菜单读取失败')
+  }
+}
+
 function ensureTable() {
-  if (store.currentTable) return true
+  if (store.currentTable)
+    return true
   showToast('请先选择桌台')
   setTimeout(() => push('table'), 700)
   return false
 }
 
 function addProduct(product: any) {
-  if (!ensureTable()) return
+  if (!ensureTable())
+    return
   store.addProduct(product)
 }
 
@@ -45,7 +80,9 @@ function selectCategory(categoryId: number) {
 <template>
   <view class="view">
     <view class="menu-head">
-      <view class="menu-brand">寻野 XUNYE</view>
+      <view class="menu-brand">
+        寻野 XUNYE
+      </view>
       <view class="menu-status">
         <view class="table-pill">
           <uv-icon name="map-fill" color="#d2a85f" size="14" />
@@ -69,7 +106,9 @@ function selectCategory(categoryId: number) {
         </view>
       </scroll-view>
       <scroll-view class="product-list" scroll-y enhanced show-scrollbar="false" :scroll-into-view="scrollIntoViewId" scroll-with-animation>
-        <view class="category-label">{{ currentCategoryName }}</view>
+        <view class="category-label">
+          {{ currentCategoryName }}
+        </view>
         <view
           v-for="product in visibleProducts"
           :id="`menu-product-${product.id}`"
@@ -79,8 +118,12 @@ function selectCategory(categoryId: number) {
           <image class="product-img" mode="aspectFill" lazy-load :src="product.image" />
           <view class="product-main">
             <view>
-              <view class="product-name">{{ product.name }}</view>
-              <view class="product-desc">{{ product.description }}</view>
+              <view class="product-name">
+                {{ product.name }}
+              </view>
+              <view class="product-desc">
+                {{ product.description }}
+              </view>
             </view>
             <view class="price-row">
               <text class="price">¥{{ product.price }}</text>

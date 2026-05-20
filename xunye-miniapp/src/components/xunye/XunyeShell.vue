@@ -15,6 +15,7 @@ import OrdersView from '@/views/OrdersView.vue'
 import PaymentView from '@/views/PaymentView.vue'
 import CouponsView from '@/views/CouponsView.vue'
 import PointsView from '@/views/PointsView.vue'
+import ProfileView from '@/views/ProfileView.vue'
 import TableView from '@/views/TableView.vue'
 
 defineOptions({ name: 'XunyeShell' })
@@ -88,6 +89,7 @@ switchTab(props.initialView)
         <MessageView v-if="activeView === 'message'" />
         <MineView v-if="activeView === 'mine'" />
         <MembershipView v-if="activeView === 'membership'" />
+        <ProfileView v-if="activeView === 'profile'" />
         <PointsView v-if="activeView === 'points'" />
         <CouponsView v-if="activeView === 'coupons'" />
         <ContactView v-if="activeView === 'contact'" />

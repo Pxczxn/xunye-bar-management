@@ -11,6 +11,10 @@ public class CustomerOrderSubmitVO {
 
     private BigDecimal totalAmount;
 
+    private BigDecimal originalAmount;
+
+    private BigDecimal discountAmount;
+
     private String status;
 
 }

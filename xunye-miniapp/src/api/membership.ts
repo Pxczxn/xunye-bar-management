@@ -2,9 +2,15 @@ import { http } from '@/http/http'
 
 export interface CustomerInfoVO {
   id: number
+  customerNo: string
+  openid: string | null
   phone: string
   nickname: string
   avatar: string | null
+  birthday: string | null
+  gender: string | null
+  favoriteTaste: string | null
+  favoriteTable: string | null
   memberLevel: string
   memberLevelName: string
   points: number
@@ -13,6 +19,22 @@ export interface CustomerInfoVO {
   totalAmount: number
   lastVisitAt: string | null
   createdAt: string | null
+}
+
+export interface CustomerWxLoginDTO {
+  code: string
+  nickname?: string
+  avatar?: string
+}
+
+export interface CustomerProfileUpdateDTO {
+  phone: string
+  nickname?: string
+  avatar?: string | null
+  birthday?: string | null
+  gender?: string | null
+  favoriteTaste?: string | null
+  favoriteTable?: string | null
 }
 
 export interface MemberLevelVO {
@@ -39,6 +61,14 @@ export interface ActivityVO {
 
 export function getMemberInfo(phone?: string) {
   return http.get<CustomerInfoVO>('/api/customer/member/info', { phone: phone || '' })
+}
+
+export function updateCustomerProfile(data: CustomerProfileUpdateDTO) {
+  return http.put<CustomerInfoVO>('/api/customer/member/profile', data)
+}
+
+export function wxLoginCustomer(data: CustomerWxLoginDTO) {
+  return http.post<CustomerInfoVO>('/api/customer/member/wx-login', data)
 }
 
 export function getMemberLevels() {

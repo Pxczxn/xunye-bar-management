@@ -12,6 +12,7 @@ export type ViewName =
   | 'message'
   | 'mine'
   | 'membership'
+  | 'profile'
   | 'points'
   | 'coupons'
   | 'contact'

@@ -1,6 +1,8 @@
 package com.xunye.admin.controller;
 
 import com.xunye.admin.common.ApiResponse;
+import com.xunye.admin.dto.CustomerProfileUpdateDTO;
+import com.xunye.admin.dto.CustomerWxLoginDTO;
 import com.xunye.admin.dto.OrderCreateDTO;
 import com.xunye.admin.service.CustomerService;
 import com.xunye.admin.vo.*;
@@ -8,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -92,6 +95,40 @@ public class CustomerController {
     @GetMapping("/member/info")
     public ApiResponse<CustomerInfoVO> getMemberInfo(@RequestParam(required = false) String phone) {
         return ApiResponse.success(customerService.getCustomerMemberInfo(phone));
+    }
+
+    @PutMapping("/member/profile")
+    public ApiResponse<CustomerInfoVO> updateMemberProfile(@Valid @RequestBody CustomerProfileUpdateDTO dto) {
+        return ApiResponse.success(customerService.updateCustomerProfile(dto));
+    }
+
+    @PostMapping("/member/wx-login")
+    public ApiResponse<CustomerInfoVO> wxLogin(@RequestBody CustomerWxLoginDTO dto) {
+        return ApiResponse.success(customerService.wxLogin(dto));
+    }
+
+    @PostMapping("/member/avatar")
+    public ApiResponse<String> uploadAvatar(
+            @RequestParam String phone,
+            @RequestParam("file") MultipartFile file) {
+        return ApiResponse.success(customerService.uploadAvatar(phone, file));
+    }
+
+    @GetMapping("/coupons")
+    public ApiResponse<List<CustomerCouponVO>> listCoupons(@RequestParam(required = false) String phone) {
+        return ApiResponse.success(customerService.listCoupons(phone));
+    }
+
+    @PostMapping("/points/rewards/{rewardId}/exchange")
+    public ApiResponse<CustomerCouponVO> exchangePoints(
+            @PathVariable Long rewardId,
+            @RequestParam(required = false) String phone) {
+        return ApiResponse.success(customerService.exchangePointsForCoupon(phone, rewardId));
+    }
+
+    @GetMapping("/points/records")
+    public ApiResponse<List<CustomerPointsRecordVO>> listPointsRecords(@RequestParam(required = false) String phone) {
+        return ApiResponse.success(customerService.listPointsRecords(phone));
     }
 
     @GetMapping("/member/levels")

@@ -1,22 +1,48 @@
 <script lang="ts" setup>
-import { computed } from 'vue'
-import { products, useXunyeStore } from '@/store'
+import type { CustomerProductVO } from '@/api/customer'
+import type { MenuProduct } from '@/store'
+import { computed, onMounted, ref } from 'vue'
+import { listCustomerProducts } from '@/api/customer'
 import { useShellState } from '@/composables/useShellState'
+import { useXunyeStore } from '@/store'
 
 const store = useXunyeStore()
 const { push, goPage, goMenuProduct } = useShellState()
+const products = ref<MenuProduct[]>([])
 
 const tableText = computed(() => store.currentTable?.code || '未选桌')
-const featuredProducts = computed(() => [products[0], products[4], products[5]].filter(Boolean))
+const featuredProducts = computed(() => products.value.slice(0, 3))
+
+onMounted(() => {
+  fetchFeaturedProducts()
+})
+
+function toMenuProduct(product: CustomerProductVO): MenuProduct {
+  return {
+    id: product.id,
+    categoryId: product.categoryId,
+    name: product.name,
+    description: product.description || '',
+    price: Number(product.price || 0),
+    image: product.imageUrl || '/static/images/products/xunye-mist.png',
+  }
+}
+
+async function fetchFeaturedProducts() {
+  const list = await listCustomerProducts().catch(() => [])
+  products.value = list.map(toMenuProduct).slice(0, 6)
+}
 
 function handleStartOrder() {
-  if (store.currentTable) goPage('menu')
+  if (store.currentTable)
+    goPage('menu')
   else push('table')
 }
 
 function openFeaturedProduct(index: number) {
   const product = featuredProducts.value[index]
-  if (!product) return
+  if (!product)
+    return
   goMenuProduct(product.id)
 }
 </script>
@@ -24,8 +50,12 @@ function openFeaturedProduct(index: number) {
 <template>
   <view class="view view-scroll">
     <view class="brand-head">
-      <view class="brand-title">寻野 XUNYE</view>
-      <view class="muted small">营业时间 18:00 - 02:00</view>
+      <view class="brand-title">
+        寻野 XUNYE
+      </view>
+      <view class="muted small">
+        营业时间 18:00 - 02:00
+      </view>
     </view>
 
     <view class="notice-pill">
@@ -35,8 +65,12 @@ function openFeaturedProduct(index: number) {
 
     <view class="table-card">
       <view>
-        <view class="muted small">当前桌台</view>
-        <view class="table-code">{{ tableText }}</view>
+        <view class="muted small">
+          当前桌台
+        </view>
+        <view class="table-code">
+          {{ tableText }}
+        </view>
       </view>
       <uv-button
         text="去选桌"
@@ -65,26 +99,34 @@ function openFeaturedProduct(index: number) {
     </view>
 
     <view class="section">
-      <view class="section-title"><uv-icon name="star-fill" color="#d2a85f" size="18" /> 店长推荐</view>
+      <view class="section-title">
+        <uv-icon name="star-fill" color="#d2a85f" size="18" /> 店长推荐
+      </view>
       <view class="recommend-grid">
         <view v-if="featuredProducts[0]" class="recommend-card" @tap="openFeaturedProduct(0)">
           <image class="recommend-img" mode="aspectFill" lazy-load :src="featuredProducts[0].image" />
           <view class="recommend-info">
-            <view class="product-name truncate">{{ featuredProducts[0].name }}</view>
+            <view class="product-name truncate">
+              {{ featuredProducts[0].name }}
+            </view>
             <text class="price">¥{{ featuredProducts[0].price.toFixed(2) }}</text>
           </view>
         </view>
         <view v-if="featuredProducts[1]" class="recommend-card" @tap="openFeaturedProduct(1)">
           <image class="recommend-img" mode="aspectFill" lazy-load :src="featuredProducts[1].image" />
           <view class="recommend-info">
-            <view class="product-name truncate">{{ featuredProducts[1].name }}</view>
+            <view class="product-name truncate">
+              {{ featuredProducts[1].name }}
+            </view>
             <text class="price">¥{{ featuredProducts[1].price.toFixed(2) }}</text>
           </view>
         </view>
         <view v-if="featuredProducts[2]" class="recommend-card" @tap="openFeaturedProduct(2)">
           <image class="recommend-img" mode="aspectFill" lazy-load :src="featuredProducts[2].image" />
           <view class="recommend-info">
-            <view class="product-name truncate">{{ featuredProducts[2].name }}</view>
+            <view class="product-name truncate">
+              {{ featuredProducts[2].name }}
+            </view>
             <text class="price">¥{{ featuredProducts[2].price.toFixed(2) }}</text>
           </view>
         </view>
@@ -162,8 +204,12 @@ function openFeaturedProduct(index: number) {
   border-radius: 999px;
   font-size: 20px;
 }
-.gold-bg { background: rgba(210, 168, 95, 0.14); }
-.blue-bg { background: rgba(64, 128, 255, 0.15); }
+.gold-bg {
+  background: rgba(210, 168, 95, 0.14);
+}
+.blue-bg {
+  background: rgba(64, 128, 255, 0.15);
+}
 .section {
   margin: 8px 16px;
 }

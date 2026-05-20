@@ -1,29 +1,47 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import type { CustomerCouponVO } from '@/api/customer'
+import { computed, onMounted, ref } from 'vue'
+import { listCustomerCoupons } from '@/api/customer'
 import { useShellState } from '@/composables/useShellState'
-import { useXunyeStore } from '@/store'
+import { useCustomerProfileStore, useXunyeStore } from '@/store'
 
 const { back, goPage, showToast } = useShellState()
 const store = useXunyeStore()
+const customerProfileStore = useCustomerProfileStore()
 
 const activeTab = ref(0)
 const couponTabs = [{ name: '可用' }, { name: '已用' }]
+const coupons = ref<CustomerCouponVO[]>([])
+const loading = ref(false)
 
-const coupons = ref([
-  { id: 1, title: '满 99 减 10', rule: '全场酒水可用', date: '2026-06-30', discountAmount: 10, used: false },
-  { id: 2, title: '小食立减 18', rule: '佐酒小食可用', date: '2026-06-18', discountAmount: 18, used: false },
-  { id: 3, title: '特调第二杯半价', rule: '招牌特调可用', date: '2026-05-31', discountAmount: 34, used: false },
-  { id: 4, title: '新客满减券', rule: '已在上一单使用', date: '2026-05-01', discountAmount: 20, used: true },
-])
+const filteredCoupons = computed(() => coupons.value.filter(item => item.used === (activeTab.value === 1)))
+
+onMounted(() => {
+  fetchCoupons()
+})
+
+async function fetchCoupons() {
+  loading.value = true
+  try {
+    coupons.value = await listCustomerCoupons(customerProfileStore.profile.phone)
+  }
+  catch {
+    showToast('优惠券读取失败')
+  }
+  finally {
+    loading.value = false
+  }
+}
 
 function useCoupon(id: number) {
   const coupon = coupons.value.find(item => item.id === id)
-  if (!coupon || coupon.used) return
+  if (!coupon || coupon.used)
+    return
   store.applyCoupon({
     id: coupon.id,
     title: coupon.title,
     rule: coupon.rule,
-    discountAmount: coupon.discountAmount,
+    discountAmount: Number(coupon.discountAmount),
   })
   showToast('已自动使用优惠券')
   goPage('menu')
@@ -37,9 +55,15 @@ function changeTab(item: { index: number }) {
 <template>
   <view class="view">
     <view class="topbar">
-      <button class="icon-button" hover-class="none" @tap="back">‹</button>
-      <view class="top-title">优惠券</view>
-      <button class="icon-button ghost" hover-class="none">‹</button>
+      <button class="icon-button" hover-class="none" @tap="back">
+        ‹
+      </button>
+      <view class="top-title">
+        优惠券
+      </view>
+      <button class="icon-button ghost" hover-class="none">
+        ‹
+      </button>
     </view>
     <view class="coupon-tabs">
       <uv-tabs
@@ -54,11 +78,22 @@ function changeTab(item: { index: number }) {
       />
     </view>
     <scroll-view scroll-y class="content view-scroll" enhanced show-scrollbar="false">
-      <view v-for="coupon in coupons.filter(item => item.used === (activeTab === 1))" :key="coupon.id" class="coupon-card" :class="{ disabled: coupon.used, active: store.activeCoupon?.id === coupon.id }">
+      <view v-if="loading" class="coupon-card">
+        <view class="muted small">
+          正在读取优惠券...
+        </view>
+      </view>
+      <view v-for="coupon in filteredCoupons" v-else :key="coupon.id" class="coupon-card" :class="{ disabled: coupon.used, active: store.activeCoupon?.id === coupon.id }">
         <view class="coupon-main">
-          <view class="coupon-title">{{ coupon.title }}</view>
-          <view class="muted small">{{ coupon.rule }}</view>
-          <view class="muted mini">有效期至 {{ coupon.date }}</view>
+          <view class="coupon-title">
+            {{ coupon.title }}
+          </view>
+          <view class="muted small">
+            {{ coupon.rule }}
+          </view>
+          <view class="muted mini">
+            有效期至 {{ coupon.validUntil }}
+          </view>
         </view>
         <button v-if="!coupon.used" class="coupon-action" hover-class="none" @tap="useCoupon(coupon.id)">
           {{ store.activeCoupon?.id === coupon.id ? '已选' : '去用' }}
@@ -90,9 +125,16 @@ function changeTab(item: { index: number }) {
   border: 1px solid var(--xunye-line);
   border-radius: 16px;
 }
-.coupon-card.disabled { opacity: 0.48; }
-.coupon-card.active { border-color: var(--xunye-gold); }
-.coupon-main { flex: 1; min-width: 0; }
+.coupon-card.disabled {
+  opacity: 0.48;
+}
+.coupon-card.active {
+  border-color: var(--xunye-gold);
+}
+.coupon-main {
+  flex: 1;
+  min-width: 0;
+}
 .coupon-title {
   margin-bottom: 4px;
   color: var(--xunye-gold);

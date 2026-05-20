@@ -49,6 +49,12 @@ public class OrderInfo {
      */
     private BigDecimal totalAmount;
 
+    private BigDecimal originalAmount;
+
+    private BigDecimal discountAmount;
+
+    private Long couponId;
+
     /**
      * 订单状态：UNPAID未支付、PAID已支付、CANCELLED已取消
      */

@@ -1,7 +1,8 @@
-import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
 
 export interface TableInfo {
+  id?: number
   area: string
   code: string
 }
@@ -42,6 +43,8 @@ export interface OrderSnapshot {
   coupon: CouponInfo | null
   remark: string
   status: string
+  serveStatus?: string
+  paymentNo?: string
 }
 
 const productImages = {
@@ -126,12 +129,14 @@ export const useXunyeStore = defineStore(
     const cart = ref<Record<number, CartItem>>({})
     const activeCoupon = ref<CouponInfo | null>(null)
     const lastOrder = ref<OrderSnapshot | null>(null)
+    const selectedOrderNo = ref('')
 
     const cartItems = computed(() => Object.values(cart.value))
     const totalQty = computed(() => cartItems.value.reduce((sum, item) => sum + item.qty, 0))
     const totalAmount = computed(() => cartItems.value.reduce((sum, item) => sum + item.price * item.qty, 0))
     const discountAmount = computed(() => {
-      if (!activeCoupon.value || totalAmount.value <= 0) return 0
+      if (!activeCoupon.value || totalAmount.value <= 0)
+        return 0
       return Math.min(activeCoupon.value.discountAmount, totalAmount.value)
     })
     const payableAmount = computed(() => Math.max(0, totalAmount.value - discountAmount.value))
@@ -186,7 +191,7 @@ export const useXunyeStore = defineStore(
     function createOrderSnapshot(remark = '') {
       const order: OrderSnapshot = {
         orderNo: formatOrderNo(),
-        createdAt: '2026-05-16 21:30:15',
+        createdAt: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
         table: currentTable.value,
         items: cartItems.value.map(item => ({ ...item })),
         originalAmount: totalAmount.value,
@@ -198,6 +203,15 @@ export const useXunyeStore = defineStore(
       }
       lastOrder.value = order
       return order
+    }
+
+    function setLastOrder(order: OrderSnapshot) {
+      lastOrder.value = order
+      selectedOrderNo.value = order.orderNo
+    }
+
+    function selectOrder(orderNo: string) {
+      selectedOrderNo.value = orderNo
     }
 
     function completePayment(remark = '') {
@@ -212,6 +226,7 @@ export const useXunyeStore = defineStore(
       cart,
       activeCoupon,
       lastOrder,
+      selectedOrderNo,
       cartItems,
       totalQty,
       totalAmount,
@@ -225,6 +240,8 @@ export const useXunyeStore = defineStore(
       applyCoupon,
       removeCoupon,
       createOrderSnapshot,
+      setLastOrder,
+      selectOrder,
       completePayment,
     }
   },

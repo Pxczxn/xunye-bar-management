@@ -1,30 +1,51 @@
 <script lang="ts" setup>
-import { computed } from 'vue'
-import { useXunyeStore } from '@/store'
+import { computed, ref } from 'vue'
+import { confirmOrderPayment, createOrderPayment } from '@/api/customer'
 import { useShellState } from '@/composables/useShellState'
+import { useXunyeStore } from '@/store'
 
 const store = useXunyeStore()
 const { back, replace, showToast } = useShellState()
+const paying = ref(false)
 
 const displayOrder = computed(() => store.lastOrder || {
-  orderNo: 'XN202605160021',
-  createdAt: '2026-05-16 21:30:15',
+  orderNo: '',
+  createdAt: '',
   table: store.currentTable || { area: '大厅', code: 'A08' },
   items: store.cartItems,
-  originalAmount: store.totalAmount || 161,
+  originalAmount: store.totalAmount,
   discountAmount: store.discountAmount || 0,
-  totalAmount: store.payableAmount || 161,
+  totalAmount: store.payableAmount,
   coupon: store.activeCoupon,
   remark: '',
   status: '制作中',
 })
 
-function executePayment() {
-  showToast('正在调用微信支付...')
-  setTimeout(() => {
+async function executePayment() {
+  if (!displayOrder.value.orderNo) {
+    showToast('订单不存在')
+    return
+  }
+  if (paying.value)
+    return
+  paying.value = true
+  try {
+    showToast('正在调用微信支付...')
+    const payment = await createOrderPayment(displayOrder.value.orderNo)
+    await confirmOrderPayment(payment.paymentNo)
+    if (store.lastOrder) {
+      store.lastOrder.paymentNo = payment.paymentNo
+      store.lastOrder.status = 'PAID'
+    }
     store.completePayment()
     replace('orderResult')
-  }, 900)
+  }
+  catch {
+    showToast('支付失败，请稍后再试')
+  }
+  finally {
+    paying.value = false
+  }
 }
 </script>
 
@@ -34,23 +55,43 @@ function executePayment() {
       <button class="icon-button" hover-class="none" @tap="back">
         <uv-icon name="arrow-left" color="#f7f1e8" size="20" />
       </button>
-      <view class="top-title">支付订单</view>
+      <view class="top-title">
+        支付订单
+      </view>
       <view class="icon-button ghost" />
     </view>
     <view class="payment-body">
-      <view class="pay-amount">¥{{ displayOrder.totalAmount.toFixed(2) }}</view>
-      <view class="muted">请确认订单并选择支付方式</view>
+      <view class="pay-amount">
+        ¥{{ displayOrder.totalAmount.toFixed(2) }}
+      </view>
+      <view class="muted">
+        请确认订单并选择支付方式
+      </view>
       <view class="panel wide">
-        <view class="info-line"><text>订单编号</text><text>{{ displayOrder.orderNo }}</text></view>
-        <view class="info-line"><text>桌台</text><text>{{ displayOrder.table?.code }}</text></view>
-        <view class="info-line"><text>商品原价</text><text>¥{{ displayOrder.originalAmount.toFixed(2) }}</text></view>
-        <view v-if="displayOrder.discountAmount" class="info-line"><text>{{ displayOrder.coupon?.title || '优惠券' }}</text><text class="gold">-¥{{ displayOrder.discountAmount.toFixed(2) }}</text></view>
-        <view class="info-line"><text>支付金额</text><text class="gold">¥{{ displayOrder.totalAmount.toFixed(2) }}</text></view>
+        <view class="info-line">
+          <text>订单编号</text><text>{{ displayOrder.orderNo }}</text>
+        </view>
+        <view class="info-line">
+          <text>桌台</text><text>{{ displayOrder.table?.code }}</text>
+        </view>
+        <view class="info-line">
+          <text>商品原价</text><text>¥{{ displayOrder.originalAmount.toFixed(2) }}</text>
+        </view>
+        <view v-if="displayOrder.discountAmount" class="info-line">
+          <text>{{ displayOrder.coupon?.title || '优惠券' }}</text><text class="gold">-¥{{ displayOrder.discountAmount.toFixed(2) }}</text>
+        </view>
+        <view class="info-line">
+          <text>支付金额</text><text class="gold">¥{{ displayOrder.totalAmount.toFixed(2) }}</text>
+        </view>
       </view>
       <view class="pay-method active">
         <view>
-          <view class="pay-title"><uv-icon name="weixin-fill" color="#27c160" size="20" /> 微信支付</view>
-          <view class="muted small">推荐使用</view>
+          <view class="pay-title">
+            <uv-icon name="weixin-fill" color="#27c160" size="20" /> 微信支付
+          </view>
+          <view class="muted small">
+            推荐使用
+          </view>
         </view>
         <uv-radio-group model-value="wechat" active-color="#d2a85f">
           <uv-radio name="wechat" :label-disabled="true" />
@@ -58,8 +99,12 @@ function executePayment() {
       </view>
       <view class="pay-method muted-method">
         <view>
-          <view class="pay-title"><uv-icon name="bag" color="#8d929d" size="20" /> 到店支付</view>
-          <view class="muted small">暂不可用</view>
+          <view class="pay-title">
+            <uv-icon name="bag" color="#8d929d" size="20" /> 到店支付
+          </view>
+          <view class="muted small">
+            暂不可用
+          </view>
         </view>
         <uv-radio-group model-value="" disabled>
           <uv-radio name="offline" :label-disabled="true" />
@@ -68,7 +113,7 @@ function executePayment() {
     </view>
     <view class="bottom-pay">
       <uv-button
-        text="确认支付"
+        :text="paying ? '支付中...' : '确认支付'"
         color="linear-gradient(135deg, #d2a85f, #bc8945)"
         shape="circle"
         custom-style="height: 48px; color: #111318; font-weight: 800;"

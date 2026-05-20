@@ -20,6 +20,16 @@ public class OrderCreateDTO {
     private Long tableId;
 
     /**
+     * 顾客手机号
+     */
+    private String phone;
+
+    /**
+     * 使用的优惠券ID
+     */
+    private Long couponId;
+
+    /**
      * 订单项列表
      */
     @NotEmpty(message = "订单项不能为空")

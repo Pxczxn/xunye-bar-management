@@ -1,14 +1,14 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { useXunyeStore } from '@/store'
 import { useShellState } from '@/composables/useShellState'
+import { useXunyeStore } from '@/store'
 
 const store = useXunyeStore()
 const { goPage, replace } = useShellState()
 
 const displayOrder = computed(() => store.lastOrder || {
-  orderNo: 'XN202605160021',
-  totalAmount: store.totalAmount || 161,
+  orderNo: '',
+  totalAmount: store.totalAmount,
   table: store.currentTable || { area: '大厅', code: 'A08' },
 })
 </script>
@@ -18,13 +18,19 @@ const displayOrder = computed(() => store.lastOrder || {
     <view class="success-circle">
       <uv-icon name="checkmark" color="#111318" size="30" />
     </view>
-    <view class="result-title">支付成功</view>
+    <view class="result-title">
+      支付成功
+    </view>
     <view class="muted result-copy">
       吧台已收到您的订单<br>正在为您精心制作中
     </view>
     <view class="panel wide">
-      <view class="info-line"><text>支付金额</text><text class="gold">¥{{ displayOrder.totalAmount.toFixed(2) }}</text></view>
-      <view class="info-line"><text>桌台</text><text>{{ displayOrder.table?.code }}</text></view>
+      <view class="info-line">
+        <text>支付金额</text><text class="gold">¥{{ displayOrder.totalAmount.toFixed(2) }}</text>
+      </view>
+      <view class="info-line">
+        <text>桌台</text><text>{{ displayOrder.table?.code }}</text>
+      </view>
     </view>
     <view class="result-actions">
       <uv-button

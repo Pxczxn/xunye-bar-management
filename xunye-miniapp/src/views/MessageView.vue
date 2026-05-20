@@ -1,16 +1,24 @@
 <script lang="ts" setup>
+function formatTodayTime(hour: number, minute = 0) {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hh = String(hour).padStart(2, '0')
+  const mm = String(minute).padStart(2, '0')
+  return `${month}-${day} ${hh}:${mm}`
+}
+
+const orderMessageTime = formatTodayTime(22, 30)
+const activityMessageTime = formatTodayTime(21)
 </script>
 
 <template>
   <view class="view">
-    <view class="simple-head">
-      <text>消息</text>
-    </view>
     <view class="content">
       <view class="message-card">
         <view class="message-row">
           <text class="message-tag">订单通知</text>
-          <text class="muted mini">刚刚</text>
+          <text class="muted mini">{{ orderMessageTime }}</text>
         </view>
         <view class="bold">您的订单已制作完成</view>
         <view class="muted small">A08 桌台的饮品已完成，请留意服务员送达。</view>
@@ -18,7 +26,7 @@
       <view class="message-card">
         <view class="message-row">
           <text class="message-tag">活动推送</text>
-          <text class="muted mini">21:00</text>
+          <text class="muted mini">{{ activityMessageTime }}</text>
         </view>
         <view class="bold">爵士现场即将开始</view>
         <view class="muted small">今晚特调买二送一，适合和朋友一起微醺。</view>
@@ -28,15 +36,7 @@
 </template>
 
 <style scoped>
-.simple-head {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: calc(var(--xunye-safe-top, 44px) + 45px);
-  padding: calc(var(--xunye-safe-top, 44px) + 8px) calc(var(--xunye-menu-right, 0px) + var(--xunye-menu-width, 0px) + 12px) 12px 16px;
-  font-size: 20px;
-  font-weight: 700;
-  text-align: center;
-}
+.content { padding-top: calc(var(--xunye-safe-top, 44px) + 18px); }
 .message-card {
   padding: 14px 16px;
   margin-bottom: 10px;
