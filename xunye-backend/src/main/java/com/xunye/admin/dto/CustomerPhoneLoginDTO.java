@@ -4,12 +4,15 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class CustomerLoginDTO {
+public class CustomerPhoneLoginDTO {
 
     @NotBlank(message = "手机号不能为空")
     private String phone;
 
-    @NotBlank(message = "验证码不能为空")
-    private String code;
+    /** Used for verification code login */
+    private String verifyCode;
+
+    /** Used for password login */
+    private String password;
 
 }

@@ -9,6 +9,9 @@ import java.time.LocalDate;
 @Data
 public class CustomerProfileUpdateDTO {
 
+    @Size(max = 32, message = "顾客编号最多32个字符")
+    private String customerNo;
+
     @NotBlank(message = "手机号不能为空")
     private String phone;
 

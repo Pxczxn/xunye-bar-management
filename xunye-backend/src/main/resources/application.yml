@@ -68,6 +68,7 @@ file:
   upload:
     base-path: ${FILE_UPLOAD_PATH:D:/Codeing/Project/XUNYE/xunye-backend/images}
     product-path: /products
+    miniapp-path: /miniapp
 
 # 支付配置
 payment:

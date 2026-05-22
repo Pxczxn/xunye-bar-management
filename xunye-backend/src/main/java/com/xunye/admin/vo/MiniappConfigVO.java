@@ -5,15 +5,15 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class ShopInfoVO {
+public class MiniappConfigVO {
 
-    private String name;
+    private String homepageTitle;
 
-    private String slogan;
+    private String homepageSubtitle;
 
-    private String businessHours;
+    private String menuDisplay;
 
-    private String notice;
+    private Boolean scanToOrder;
 
     /**
      * 首页轮播图（图片URL列表）

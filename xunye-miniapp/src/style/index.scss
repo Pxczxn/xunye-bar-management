@@ -16,6 +16,31 @@ page {
 
   // 修改按钮背景色
   // --wot-button-primary-bg-color: green;
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  background: #090909;
+}
+
+view,
+scroll-view,
+swiper,
+swiper-item,
+image,
+text,
+button,
+input,
+textarea,
+picker {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+scroll-view {
+  display: block;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 button {
@@ -38,18 +63,28 @@ button::after {
   z-index: 2;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
   color: #fff;
   background: #090909;
 }
 
 .view-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   overflow-y: auto;
   padding-bottom: 110px;
 }
 
 .content {
+  box-sizing: border-box;
   flex: 1;
+  width: 100%;
+  max-width: 100%;
   padding: 0 16px;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -86,6 +121,10 @@ button::after {
 .topbar {
   display: flex;
   align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
   padding: calc(var(--xunye-safe-top, 44px) + 5px) 12px 8px;
 }
 
@@ -229,6 +268,7 @@ button::after {
   border-radius: 999px;
   font-size: 14px;
   color: #ccc;
+  order: 3;
 }
 
 .round-plus {
@@ -242,6 +282,7 @@ button::after {
   font-size: 16px;
   color: #090909;
   font-weight: 700;
+  order: 1;
 }
 
 .qty {
@@ -249,10 +290,11 @@ button::after {
   font-weight: 600;
   min-width: 16px;
   text-align: center;
+  order: 2;
 }
 
 .placeholder {
-  color: #555;
+  color: rgba(247, 241, 232, 0.32);
 }
 
 .bottom-pay {

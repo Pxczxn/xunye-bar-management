@@ -1,21 +1,21 @@
 import { ref } from 'vue'
 
-export type ViewName =
-  | 'index'
-  | 'table'
-  | 'menu'
-  | 'cart'
-  | 'payment'
-  | 'orderResult'
-  | 'orderDetail'
-  | 'orders'
-  | 'message'
-  | 'mine'
-  | 'membership'
-  | 'profile'
-  | 'points'
-  | 'coupons'
-  | 'contact'
+export type ViewName
+  = | 'index'
+    | 'table'
+    | 'menu'
+    | 'cart'
+    | 'payment'
+    | 'orderResult'
+    | 'orderDetail'
+    | 'orders'
+    | 'message'
+    | 'mine'
+    | 'membership'
+    | 'profile'
+    | 'points'
+    | 'coupons'
+    | 'contact'
 
 export const mainTabs: ViewName[] = ['index', 'menu', 'orders', 'message', 'mine']
 
@@ -32,14 +32,18 @@ const activeView = ref<ViewName>('index')
 const history = ref<ViewName[]>(['index'])
 const toastText = ref('')
 const toastVisible = ref(false)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
 const menuAnchorProductId = ref<number | null>(null)
 
 export function useShellState() {
   function showToast(message: string) {
+    if (toastTimer)
+      clearTimeout(toastTimer)
     toastText.value = message
     toastVisible.value = true
-    setTimeout(() => {
+    toastTimer = setTimeout(() => {
       toastVisible.value = false
+      toastTimer = null
     }, 1800)
   }
 

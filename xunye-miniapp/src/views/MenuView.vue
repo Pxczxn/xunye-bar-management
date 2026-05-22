@@ -13,6 +13,7 @@ const categories = ref<CustomerCategoryVO[]>([])
 const products = ref<MenuProduct[]>([])
 const activeCategoryId = ref(allCategoryId)
 const scrollIntoViewId = ref('')
+const loading = ref(false)
 const categoryOptions = computed(() => [{ id: allCategoryId, name: '全部' }, ...categories.value])
 const currentCategoryName = computed(() => categoryOptions.value.find(item => item.id === activeCategoryId.value)?.name)
 const visibleProducts = computed(() => {
@@ -44,6 +45,7 @@ function toMenuProduct(product: CustomerProductVO): MenuProduct {
 }
 
 async function fetchMenu() {
+  loading.value = true
   try {
     const [categoryList, productList] = await Promise.all([
       listCustomerCategories(),
@@ -54,6 +56,9 @@ async function fetchMenu() {
   }
   catch {
     showToast('菜单读取失败')
+  }
+  finally {
+    loading.value = false
   }
 }
 
@@ -106,39 +111,44 @@ function selectCategory(categoryId: number) {
         </view>
       </scroll-view>
       <scroll-view class="product-list" scroll-y enhanced show-scrollbar="false" :scroll-into-view="scrollIntoViewId" scroll-with-animation>
-        <view class="category-label">
-          {{ currentCategoryName }}
+        <view v-if="loading" class="products-loading">
+          <uv-loading-icon mode="circle" color="#d2a85f" text="加载菜单中" text-color="#8d929d" />
         </view>
-        <view
-          v-for="product in visibleProducts"
-          :id="`menu-product-${product.id}`"
-          :key="product.id"
-          class="product-item"
-        >
-          <image class="product-img" mode="aspectFill" lazy-load :src="product.image" />
-          <view class="product-main">
-            <view>
-              <view class="product-name">
-                {{ product.name }}
+        <template v-else>
+          <view class="category-label">
+            {{ currentCategoryName }}
+          </view>
+          <view
+            v-for="product in visibleProducts"
+            :id="`menu-product-${product.id}`"
+            :key="product.id"
+            class="product-item"
+          >
+            <image class="product-img" mode="aspectFill" lazy-load :src="product.image" />
+            <view class="product-main">
+              <view>
+                <view class="product-name">
+                  {{ product.name }}
+                </view>
+                <view class="product-desc">
+                  {{ product.description }}
+                </view>
               </view>
-              <view class="product-desc">
-                {{ product.description }}
-              </view>
-            </view>
-            <view class="price-row">
-              <text class="price">¥{{ product.price }}</text>
-              <view class="stepper">
-                <button v-if="store.getQty(product.id)" class="minus" @tap="store.decreaseProduct(product.id)">
-                  <uv-icon name="minus" color="#f7f1e8" size="13" />
-                </button>
-                <text v-if="store.getQty(product.id)" class="qty">{{ store.getQty(product.id) }}</text>
-                <button class="round-plus" @tap="addProduct(product)">
-                  <uv-icon name="plus" color="#111318" size="13" />
-                </button>
+              <view class="price-row">
+                <text class="price">¥{{ product.price }}</text>
+                <view class="stepper">
+                  <button v-if="store.getQty(product.id)" class="minus" @tap="store.decreaseProduct(product.id)">
+                    <uv-icon name="minus" color="#f7f1e8" size="13" />
+                  </button>
+                  <text v-if="store.getQty(product.id)" class="qty">{{ store.getQty(product.id) }}</text>
+                  <button class="round-plus" @tap="addProduct(product)">
+                    <uv-icon name="plus" color="#111318" size="13" />
+                  </button>
+                </view>
               </view>
             </view>
           </view>
-        </view>
+        </template>
       </scroll-view>
     </view>
   </view>
@@ -220,6 +230,12 @@ function selectCategory(categoryId: number) {
   width: 3px;
   background: var(--xunye-gold);
   border-radius: 0 3px 3px 0;
+}
+.products-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
 }
 .product-list {
   width: 70%;

@@ -2,22 +2,21 @@ package com.xunye.admin.vo;
 
 import lombok.Data;
 
-import java.util.List;
-
 @Data
-public class ShopInfoVO {
+public class ShopConfigVO {
 
     private String name;
 
     private String slogan;
 
+    private String address;
+
+    private String phone;
+
+    private String contactWechat;
+
     private String businessHours;
 
     private String notice;
-
-    /**
-     * 首页轮播图（图片URL列表）
-     */
-    private List<String> bannerImages;
 
 }

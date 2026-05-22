@@ -3,6 +3,7 @@ import type { CustomerTableVO } from '@/api/customer'
 import type { CustomerProfileUpdateDTO } from '@/api/membership'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { listCustomerTables } from '@/api/customer'
+import { sendLoginCode, setPassword } from '@/api/membership'
 import { useShellState } from '@/composables/useShellState'
 import { useCustomerProfileStore } from '@/store/customerProfile'
 import { getEnvBaseUrl } from '@/utils'
@@ -34,6 +35,9 @@ const avatarUploadUrl = `${getEnvBaseUrl()}/api/customer/member/avatar`
 const editableFields = ['nickname', 'phone', 'birthday', 'gender', 'favoriteTaste', 'favoriteTable', 'avatar'] as const
 
 const maskedPhone = computed(() => profile.phone.replace(/^(\d{3})\d{4}(\d+)/, '$1 **** $2'))
+const safePoints = computed(() => Number(profile.points || 0))
+const safeTotalOrders = computed(() => Number(profile.totalOrders || 0))
+const profileIdText = computed(() => profile.customerNo || '生成中')
 
 onMounted(() => {
   fetchProfile()
@@ -73,10 +77,6 @@ function openNicknameEditor() {
 
 function openPhoneEditor() {
   openEditor('phone', '手机号', profile.phone)
-}
-
-function openBirthdayEditor() {
-  editingValue.value = profile.birthday || ''
 }
 
 function openGenderEditor() {
@@ -121,10 +121,20 @@ async function saveProfile(patch: Partial<CustomerProfileUpdateDTO> = {}) {
 }
 
 async function submitProfileEditor() {
+  const nickname = profileDraft.nickname.trim()
+  const phone = profileDraft.phone.trim()
+  if (!nickname) {
+    showToast('昵称不能为空')
+    return
+  }
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    showToast('手机号格式不对')
+    return
+  }
   try {
     await saveProfile({
-      nickname: profileDraft.nickname.trim(),
-      phone: profileDraft.phone.trim(),
+      nickname,
+      phone,
       birthday: profileDraft.birthday.trim() || null,
       gender: profileDraft.gender.trim() || null,
       favoriteTaste: profileDraft.favoriteTaste.trim() || null,
@@ -141,8 +151,16 @@ async function submitProfileEditor() {
 async function submitEditor() {
   if (!editingField.value)
     return
+  if (editingField.value === 'nickname' && !editingValue.value.trim()) {
+    showToast('昵称不能为空')
+    return
+  }
+  if (editingField.value === 'phone' && !/^1[3-9]\d{9}$/.test(editingValue.value.trim())) {
+    showToast('手机号格式不对')
+    return
+  }
   try {
-    await saveProfile({ [editingField.value]: editingValue.value } as Partial<CustomerProfileUpdateDTO>)
+    await saveProfile({ [editingField.value]: editingValue.value.trim() } as Partial<CustomerProfileUpdateDTO>)
     showToast(`${editingLabel.value}已保存`)
     closeEditor()
   }
@@ -246,13 +264,14 @@ function uploadAvatar(filePath: string) {
     name: 'file',
     formData: {
       phone: profile.phone,
+      customerNo: profile.customerNo,
     },
     success: async (res) => {
       try {
         const body = JSON.parse(res.data)
         const avatar = body.data
         profile.avatar = normalizeImageUrl(avatar)
-        await saveProfile({ avatar })
+        await saveProfile({ avatar: profile.avatar })
         showToast('头像已保存')
       }
       catch {
@@ -263,6 +282,77 @@ function uploadAvatar(filePath: string) {
       showToast('头像上传失败')
     },
   })
+}
+
+// 设置密码相关
+const passwordOpen = ref(false)
+const passwordForm = reactive({
+  verifyCode: '',
+  password: '',
+})
+const passwordCountdown = ref(0)
+let passwordCodeTimer: ReturnType<typeof setInterval> | null = null
+
+function openPasswordEditor() {
+  passwordForm.verifyCode = ''
+  passwordForm.password = ''
+  passwordCountdown.value = 0
+  passwordOpen.value = true
+}
+
+function closePasswordEditor() {
+  passwordOpen.value = false
+  if (passwordCodeTimer) {
+    clearInterval(passwordCodeTimer)
+    passwordCodeTimer = null
+  }
+}
+
+function startPasswordCountdown() {
+  passwordCountdown.value = 30
+  if (passwordCodeTimer)
+    clearInterval(passwordCodeTimer)
+  passwordCodeTimer = setInterval(() => {
+    passwordCountdown.value -= 1
+    if (passwordCountdown.value <= 0 && passwordCodeTimer) {
+      clearInterval(passwordCodeTimer)
+      passwordCodeTimer = null
+    }
+  }, 1000)
+}
+
+async function handleSendPasswordCode() {
+  if (passwordCountdown.value > 0)
+    return
+  try {
+    await sendLoginCode(profile.phone)
+    startPasswordCountdown()
+    showToast('验证码已发送')
+  }
+  catch {
+    showToast('发送失败，请稍后重试')
+  }
+}
+
+async function submitPassword() {
+  const password = passwordForm.password.trim()
+  const code = passwordForm.verifyCode.trim()
+  if (!code) {
+    showToast('请输入验证码')
+    return
+  }
+  if (password.length < 6) {
+    showToast('密码至少6位')
+    return
+  }
+  try {
+    await setPassword(profile.phone, password, code)
+    closePasswordEditor()
+    showToast('密码已设置')
+  }
+  catch {
+    showToast('设置失败，请重试')
+  }
 }
 </script>
 
@@ -291,7 +381,7 @@ function uploadAvatar(filePath: string) {
             {{ profile.levelText }}
           </view>
           <view class="muted mini">
-            ID {{ profile.customerNo || '生成中' }}
+            ID {{ profileIdText }}
           </view>
         </view>
         <button class="edit-pill" hover-class="none" @tap.stop="() => openProfileEditor()">
@@ -302,7 +392,7 @@ function uploadAvatar(filePath: string) {
       <view class="profile-stats">
         <view>
           <view class="stat-num">
-            {{ profile.totalOrders }}
+            {{ safeTotalOrders }}
           </view>
           <view class="muted mini">
             到店次数
@@ -311,7 +401,7 @@ function uploadAvatar(filePath: string) {
         <view class="divider" />
         <view>
           <view class="stat-num">
-            {{ profile.favoriteTable }}
+            {{ profile.favoriteTable || '-' }}
           </view>
           <view class="muted mini">
             常用桌台
@@ -320,7 +410,7 @@ function uploadAvatar(filePath: string) {
         <view class="divider" />
         <view>
           <view class="stat-num">
-            {{ profile.points }}
+            {{ safePoints }}
           </view>
           <view class="muted mini">
             可用积分
@@ -329,6 +419,15 @@ function uploadAvatar(filePath: string) {
       </view>
 
       <view class="cell-panel">
+        <view class="readonly-row">
+          <view class="row-title">
+            <text class="id-badge">ID</text>
+            <text>顾客ID</text>
+          </view>
+          <view class="row-value">
+            <text>{{ profileIdText }}</text>
+          </view>
+        </view>
         <view class="profile-row" @tap="() => openNicknameEditor()">
           <view class="row-title">
             <uv-icon name="account" color="#d2a85f" size="17" />
@@ -346,6 +445,16 @@ function uploadAvatar(filePath: string) {
           </view>
           <view class="row-value">
             <text>{{ maskedPhone }}</text>
+            <uv-icon name="arrow-right" color="#8d929d" size="14" />
+          </view>
+        </view>
+        <view class="profile-row" @tap="() => openPasswordEditor()">
+          <view class="row-title">
+            <uv-icon name="lock-fill" color="#d2a85f" size="17" />
+            <text>设置密码</text>
+          </view>
+          <view class="row-value">
+            <text class="muted small">验证码设置</text>
             <uv-icon name="arrow-right" color="#8d929d" size="14" />
           </view>
         </view>
@@ -445,6 +554,19 @@ function uploadAvatar(filePath: string) {
             {{ item }}
           </button>
         </view>
+        <view v-else-if="editingField === 'birthday'" class="birthday-picker-wrapper">
+          <picker
+            mode="date"
+            :value="editingValue || birthdayEnd"
+            :start="birthdayStart"
+            :end="birthdayEnd"
+            @change="handleBirthdayChange"
+          >
+            <view class="picker-field">
+              {{ editingValue || '请选择生日' }}
+            </view>
+          </picker>
+        </view>
         <view v-else-if="editingField === 'favoriteTaste'" class="option-list">
           <button
             v-for="item in tasteOptions"
@@ -479,7 +601,7 @@ function uploadAvatar(filePath: string) {
           placeholder-style="color: #8d929d"
           custom-style="background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); border-radius: 12px;"
         />
-        <view v-if="!['gender', 'favoriteTaste', 'favoriteTable'].includes(editingField)" class="edit-actions">
+        <view v-if="!['gender', 'birthday', 'favoriteTaste', 'favoriteTable'].includes(editingField)" class="edit-actions">
           <button class="sheet-button muted-button" hover-class="none" @tap="() => closeEditor()">
             取消
           </button>
@@ -498,6 +620,14 @@ function uploadAvatar(filePath: string) {
         <view class="form-stack">
           <view class="form-field">
             <view class="form-label">
+              顾客ID
+            </view>
+            <view class="readonly-field">
+              {{ profileIdText }}
+            </view>
+          </view>
+          <view class="form-field">
+            <view class="form-label">
               昵称
             </view>
             <uv-input v-model="profileDraft.nickname" border="surround" clearable color="#f7f1e8" placeholder="请输入昵称" placeholder-style="color: #8d929d" custom-style="background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); border-radius: 12px;" />
@@ -506,7 +636,7 @@ function uploadAvatar(filePath: string) {
             <view class="form-label">
               手机号
             </view>
-            <uv-input v-model="profileDraft.phone" border="surround" clearable color="#f7f1e8" type="number" placeholder="请输入手机号" placeholder-style="color: #8d929d" custom-style="background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); border-radius: 12px;" />
+            <uv-input v-model="profileDraft.phone" border="surround" clearable color="#f7f1e8" type="number" maxlength="11" placeholder="请输入手机号" placeholder-style="color: #8d929d" custom-style="background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); border-radius: 12px;" />
           </view>
           <view class="form-row">
             <view class="form-field">
@@ -582,6 +712,50 @@ function uploadAvatar(filePath: string) {
         </view>
       </scroll-view>
     </view>
+
+    <!-- 设置密码弹窗 -->
+    <view v-if="passwordOpen" class="sheet-mask" @tap="() => closePasswordEditor()">
+      <view class="edit-panel sheet-panel" @tap.stop>
+        <view class="edit-title">
+          设置密码
+        </view>
+        <view class="form-stack">
+          <view class="form-field">
+            <view class="form-label">
+              手机号
+            </view>
+            <view class="readonly-field">
+              {{ maskedPhone }}
+            </view>
+          </view>
+          <view class="form-field">
+            <view class="form-label">
+              验证码
+            </view>
+            <view class="code-row">
+              <uv-input v-model="passwordForm.verifyCode" border="surround" clearable color="#f7f1e8" type="number" placeholder="请输入验证码" placeholder-style="color: #8d929d" custom-style="flex:1; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); border-radius: 12px;" />
+              <view class="code-button" :class="{ disabled: passwordCountdown > 0 }" @tap="handleSendPasswordCode">
+                <text>{{ passwordCountdown > 0 ? `${passwordCountdown}s` : '获取验证码' }}</text>
+              </view>
+            </view>
+          </view>
+          <view class="form-field">
+            <view class="form-label">
+              新密码
+            </view>
+            <uv-input v-model="passwordForm.password" border="surround" clearable color="#f7f1e8" type="text" password placeholder="请输入密码（至少6位）" placeholder-style="color: #8d929d" custom-style="background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); border-radius: 12px;" />
+          </view>
+        </view>
+        <view class="edit-actions">
+          <button class="sheet-button muted-button" hover-class="none" @tap="() => closePasswordEditor()">
+            取消
+          </button>
+          <button class="sheet-button save-button" hover-class="none" @tap="() => submitPassword()">
+            保存密码
+          </button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -641,7 +815,7 @@ function uploadAvatar(filePath: string) {
   padding: 16px;
   text-align: center;
 }
-.profile-stats > view {
+.profile-stats > view:not(.divider) {
   flex: 1;
   min-width: 0;
 }
@@ -659,6 +833,14 @@ function uploadAvatar(filePath: string) {
   padding: 0 16px;
   overflow: hidden;
 }
+.readonly-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 49px;
+  border-bottom: 1px solid var(--xunye-line);
+}
 .profile-row {
   display: flex;
   align-items: center;
@@ -673,11 +855,28 @@ function uploadAvatar(filePath: string) {
 .row-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 88px;
   color: #f7f1e8;
   font-size: 15px;
   font-weight: 700;
+}
+.id-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 16px;
+  padding: 0 5px;
+  color: rgba(210, 168, 95, 0.92);
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(210, 168, 95, 0.08);
+  border: 1px solid rgba(210, 168, 95, 0.16);
+  border-radius: 8px;
+  box-sizing: border-box;
+  transform: translateY(-1px);
+  flex-shrink: 0;
 }
 .row-value {
   flex: 1;
@@ -770,6 +969,19 @@ function uploadAvatar(filePath: string) {
   color: var(--xunye-muted);
   font-size: 12px;
 }
+.readonly-field {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 14px;
+  color: var(--xunye-muted);
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
 .gender-segment {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -784,6 +996,10 @@ function uploadAvatar(filePath: string) {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.birthday-picker-wrapper {
+  display: flex;
+  justify-content: center;
 }
 .gender-segment.compact {
   height: 38px;
@@ -850,5 +1066,28 @@ function uploadAvatar(filePath: string) {
 .save-button {
   color: #111318;
   background: linear-gradient(135deg, #d2a85f, #bc8945);
+}
+.code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.code-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 108px;
+  height: 40px;
+  color: #111318;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--xunye-gold);
+  border-radius: 12px;
+  line-height: 40px;
+  overflow: hidden;
+}
+.code-button.disabled {
+  color: rgba(247, 241, 232, 0.52);
+  background: rgba(255, 255, 255, 0.08);
 }
 </style>

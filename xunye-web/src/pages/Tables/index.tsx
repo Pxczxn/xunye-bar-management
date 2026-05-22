@@ -83,7 +83,7 @@ const darkSelectProps = {
 const modalStyles = {
   root: { background: 'transparent' },
   wrapper: { background: 'rgba(0, 0, 0, 0.65)' },
-  container: { background: '#1A1A1F' },
+  content: { background: '#1A1A1F', border: '1px solid #2A2A31' },
   header: { background: '#1A1A1F', borderBottom: '1px solid #2A2A31', paddingBottom: 16 },
   body: { background: '#1A1A1F', paddingTop: 20 },
   footer: { background: '#1A1A1F', borderTop: '1px solid #2A2A31' },

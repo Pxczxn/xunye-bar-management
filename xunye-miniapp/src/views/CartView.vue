@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
-import { createCustomerOrder } from '@/api/customer'
+import { computed, onMounted, ref, watch } from 'vue'
+import type { CustomerCouponVO } from '@/api/customer'
+import { createCustomerOrder, listCustomerCoupons } from '@/api/customer'
 import { useShellState } from '@/composables/useShellState'
 import { useXunyeStore } from '@/store'
 import { useCustomerProfileStore } from '@/store/customerProfile'
@@ -10,6 +11,85 @@ const customerProfileStore = useCustomerProfileStore()
 const { back, push, showToast } = useShellState()
 const remark = ref('')
 const submitting = ref(false)
+
+const coupons = ref<CustomerCouponVO[]>([])
+const loadingCoupons = ref(false)
+
+const mappedCoupons = computed(() => {
+  const total = store.totalAmount
+  return coupons.value.map(c => ({
+    ...c,
+    isUsable: !c.used && c.minAmount <= total,
+  }))
+})
+
+function getCouponAfterPrice(coupon: CustomerCouponVO) {
+  return Math.max(0, store.totalAmount - coupon.discountAmount)
+}
+
+function getCouponStatusText(coupon: CustomerCouponVO) {
+  if (coupon.used)
+    return '已使用'
+  if (coupon.minAmount > store.totalAmount) {
+    const diff = coupon.minAmount - store.totalAmount
+    return `还差 ¥${diff.toFixed(2)} 可用`
+  }
+  return ''
+}
+
+function findBestCoupon(): CustomerCouponVO | null {
+  const total = store.totalAmount
+  let best: CustomerCouponVO | null = null
+  for (const c of coupons.value) {
+    if (!c.used && c.minAmount <= total) {
+      if (!best || c.discountAmount > best.discountAmount) {
+        best = c
+      }
+    }
+  }
+  return best
+}
+
+function applyBestCoupon() {
+  const best = findBestCoupon()
+  if (best) {
+    store.applyCoupon({
+      id: best.id,
+      title: best.title,
+      rule: best.rule,
+      discountAmount: best.discountAmount,
+    })
+  }
+  else {
+    store.removeCoupon()
+  }
+}
+
+function selectCoupon(coupon: any) {
+  if (!coupon.isUsable)
+    return
+  if (store.activeCoupon?.id === coupon.id) {
+    store.removeCoupon()
+  }
+  else {
+    store.applyCoupon({
+      id: coupon.id,
+      title: coupon.title,
+      rule: coupon.rule,
+      discountAmount: coupon.discountAmount,
+    })
+  }
+}
+
+// Watch totalAmount: if the current active coupon becomes unusable, automatically select the next best one
+watch(() => store.totalAmount, (newTotal) => {
+  if (store.activeCoupon) {
+    const currentCouponObj = coupons.value.find(c => c.id === store.activeCoupon?.id)
+    if (!currentCouponObj || currentCouponObj.minAmount > newTotal) {
+      applyBestCoupon()
+    }
+  }
+})
 
 function addProduct(product: any) {
   store.addProduct(product)
@@ -67,6 +147,24 @@ async function submitOrder() {
     submitting.value = false
   }
 }
+
+onMounted(async () => {
+  loadingCoupons.value = true
+  const phone = customerProfileStore.profile.phone
+  if (phone) {
+    try {
+      const all = await listCustomerCoupons(phone)
+      coupons.value = all
+      applyBestCoupon()
+    }
+    catch {
+      // silent
+    }
+    finally {
+      loadingCoupons.value = false
+    }
+  }
+})
 </script>
 
 <template>
@@ -127,19 +225,59 @@ async function submitOrder() {
           <input v-model="remark" class="remark-input" placeholder="口味、偏好等要求" placeholder-class="placeholder">
         </view>
       </view>
-      <view v-if="store.activeCoupon" class="panel">
-        <view class="discount-line">
-          <view>
-            <view class="bold">
-              {{ store.activeCoupon.title }}
+      <!-- 优惠券选择面板 -->
+      <view class="panel">
+        <view class="panel-header">
+          <text class="panel-title">我的优惠券</text>
+          <text v-if="store.activeCoupon" class="active-badge">已享最佳优惠</text>
+        </view>
+        
+        <view v-if="loadingCoupons" class="loading-state">
+          <text class="muted small">正在加载优惠券...</text>
+        </view>
+        <view v-else-if="coupons.length === 0" class="empty-state">
+          <text class="muted small">暂无优惠券</text>
+        </view>
+        <view v-else class="coupon-list">
+          <view
+            v-for="coupon in mappedCoupons"
+            :key="coupon.id"
+            class="coupon-card"
+            :class="{ 
+              active: store.activeCoupon?.id === coupon.id,
+              disabled: !coupon.isUsable 
+            }"
+            @tap="selectCoupon(coupon)"
+          >
+            <view class="coupon-left">
+              <view class="coupon-price">
+                <text class="symbol">¥</text>
+                <text class="val">{{ coupon.discountAmount }}</text>
+              </view>
+              <view class="coupon-condition">
+                {{ coupon.minAmount > 0 ? `满${coupon.minAmount}可用` : '无门槛' }}
+              </view>
             </view>
-            <view class="muted small">
-              {{ store.activeCoupon.rule }}
+            <view class="coupon-body">
+              <view class="coupon-title">
+                {{ coupon.title }}
+              </view>
+              <view class="coupon-desc">
+                {{ coupon.rule }}
+              </view>
+              <view v-if="coupon.isUsable" class="coupon-after">
+                券后: <text class="after-price">¥{{ getCouponAfterPrice(coupon).toFixed(2) }}</text>
+              </view>
+              <view v-else class="coupon-status-text">
+                {{ getCouponStatusText(coupon) }}
+              </view>
+            </view>
+            <view class="coupon-right">
+              <view class="check-circle" :class="{ checked: store.activeCoupon?.id === coupon.id }">
+                <text v-if="store.activeCoupon?.id === coupon.id">✓</text>
+              </view>
             </view>
           </view>
-          <button class="plain-button gold" hover-class="none" @tap="store.removeCoupon">
-            不用了
-          </button>
         </view>
       </view>
     </scroll-view>
@@ -210,7 +348,9 @@ async function submitOrder() {
 }
 .remark-input {
   flex: 1;
-  padding: 8px 12px;
+  height: 38px;
+  line-height: 38px;
+  padding: 0 12px;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   color: #fff;
@@ -238,5 +378,121 @@ async function submitOrder() {
 .minus.gray {
   background: var(--xunye-surface-2);
   color: #fff;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.active-badge {
+  font-size: 11px;
+  color: var(--xunye-gold);
+  background: rgba(210, 168, 95, 0.15);
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid rgba(210, 168, 95, 0.3);
+}
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 16px 0;
+}
+.coupon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.coupon-card {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+.coupon-card.active {
+  border-color: rgba(210, 168, 95, 0.6);
+  background: rgba(210, 168, 95, 0.06);
+}
+.coupon-card.disabled {
+  opacity: 0.45;
+}
+.coupon-left {
+  flex-shrink: 0;
+  width: 76px;
+  text-align: center;
+  border-right: 1px dashed rgba(255, 255, 255, 0.12);
+  padding-right: 10px;
+  margin-right: 10px;
+}
+.coupon-price {
+  color: var(--xunye-gold);
+  font-weight: 800;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+.coupon-price .symbol {
+  font-size: 12px;
+}
+.coupon-price .val {
+  font-size: 20px;
+}
+.coupon-condition {
+  font-size: 10px;
+  color: #8d929d;
+  margin-top: 2px;
+}
+.coupon-body {
+  flex: 1;
+  min-width: 0;
+}
+.coupon-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f7f1e8;
+  margin-bottom: 2px;
+}
+.coupon-desc {
+  font-size: 11px;
+  color: #8d929d;
+  margin-bottom: 4px;
+}
+.coupon-after {
+  font-size: 11px;
+  color: #8d929d;
+}
+.coupon-after .after-price {
+  color: var(--xunye-gold);
+  font-weight: 700;
+  font-size: 13px;
+  margin-left: 2px;
+}
+.coupon-status-text {
+  font-size: 11px;
+  color: #858585;
+}
+.coupon-right {
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+.check-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+  color: transparent;
+  transition: all 0.2s ease;
+}
+.check-circle.checked {
+  border-color: var(--xunye-gold);
+  background: var(--xunye-gold);
+  color: #111318;
 }
 </style>

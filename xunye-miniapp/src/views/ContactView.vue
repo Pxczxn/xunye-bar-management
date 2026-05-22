@@ -17,12 +17,14 @@ function copyText(text: string) {
 <template>
   <view class="view">
     <view class="topbar">
-      <button class="icon-button" hover-class="none" @tap="back">
+      <button class="icon-button" hover-class="none" @tap="() => back()">
         <uv-icon name="arrow-left" color="#f7f1e8" size="20" />
       </button>
-      <view class="top-title">联系客服</view>
+      <view class="top-title">
+        联系客服
+      </view>
     </view>
-    <scroll-view scroll-y class="scroll-view">
+    <scroll-view scroll-y class="scroll-view" enhanced show-scrollbar="false">
       <view class="section-wrap">
         <view class="contact-card">
           <view class="contact-icon-wrap">
@@ -35,26 +37,53 @@ function copyText(text: string) {
 
       <view class="section-wrap">
         <view class="contact-list">
-          <uv-cell title="客服电话" label="138-0000-0000" icon="phone-fill" value="拨打" is-link clickable :border="true"
-            :title-style="{ color: '#f7f1e8', fontWeight: 700 }"
-            :label-style="{ color: '#8d929d' }"
-            :icon-style="{ color: '#d2a85f' }"
-            :cell-style="{ background: 'transparent', padding: '14px 0' }"
-            @click="callPhone('13800000000')"
-          />
-          <uv-cell title="微信公众号" label="寻野酒吧" icon="chat-fill" value="复制" is-link clickable :border="true"
-            :title-style="{ color: '#f7f1e8', fontWeight: 700 }"
-            :label-style="{ color: '#8d929d' }"
-            :icon-style="{ color: '#d2a85f' }"
-            :cell-style="{ background: 'transparent', padding: '14px 0' }"
-            @click="copyText('寻野酒吧')"
-          />
-          <uv-cell title="门店地址" label="示例街道 88 号" icon="map-fill" :border="false"
-            :title-style="{ color: '#f7f1e8', fontWeight: 700 }"
-            :label-style="{ color: '#8d929d' }"
-            :icon-style="{ color: '#d2a85f' }"
-            :cell-style="{ background: 'transparent', padding: '14px 0' }"
-          />
+          <button class="contact-row" hover-class="none" @tap="() => callPhone('13800000000')">
+            <view class="row-main">
+              <uv-icon name="phone-fill" color="#d2a85f" size="17" />
+              <view class="row-copy">
+                <text class="row-title">
+                  客服电话
+                </text>
+                <text class="row-label">
+                  138-0000-0000
+                </text>
+              </view>
+            </view>
+            <view class="row-action">
+              <text>拨打</text>
+              <uv-icon name="arrow-right" color="#8d929d" size="14" />
+            </view>
+          </button>
+          <button class="contact-row" hover-class="none" @tap="() => copyText('寻野酒吧')">
+            <view class="row-main">
+              <uv-icon name="chat-fill" color="#d2a85f" size="17" />
+              <view class="row-copy">
+                <text class="row-title">
+                  微信公众号
+                </text>
+                <text class="row-label">
+                  寻野酒吧
+                </text>
+              </view>
+            </view>
+            <view class="row-action">
+              <text>复制</text>
+              <uv-icon name="arrow-right" color="#8d929d" size="14" />
+            </view>
+          </button>
+          <view class="contact-row last">
+            <view class="row-main">
+              <uv-icon name="map-fill" color="#d2a85f" size="17" />
+              <view class="row-copy">
+                <text class="row-title">
+                  门店地址
+                </text>
+                <text class="row-label">
+                  示例街道 88 号
+                </text>
+              </view>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -83,49 +112,149 @@ function copyText(text: string) {
 .topbar {
   display: flex;
   align-items: center;
+  box-sizing: border-box;
+  width: 100%;
   padding: calc(var(--xunye-safe-top, 44px) + 5px) 12px 8px;
+  overflow: hidden;
 }
 .scroll-view {
+  box-sizing: border-box;
   flex: 1;
+  width: 100%;
+  max-width: 100%;
   padding: 0 16px;
+  overflow-x: hidden;
 }
-.section-wrap { margin-bottom: 20px; }
-.section-title { font-size: 16px; font-weight: 700; display: block; margin-bottom: 10px; }
+.section-wrap {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.section-title {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
 .contact-card {
   display: flex;
   flex-direction: column;
   align-items: center;
+  box-sizing: border-box;
+  width: 100%;
   padding: 24px;
   background: rgba(21, 23, 27, 0.94);
   border: 1px solid var(--xunye-line);
   border-radius: 18px;
 }
 .contact-icon-wrap {
-  width: 52px; height: 52px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 8px;
   background: rgba(210, 168, 95, 0.14);
   border-radius: 999px;
-  margin-bottom: 8px;
   font-size: 24px;
 }
-.contact-name { font-size: 16px; font-weight: 600; }
-.contact-desc { font-size: 12px; color: #858585; margin-top: 2px; }
+.contact-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+.contact-desc {
+  margin-top: 2px;
+  color: #858585;
+  font-size: 12px;
+}
 .contact-list {
+  box-sizing: border-box;
+  width: 100%;
   padding: 0 16px;
   overflow: hidden;
   background: rgba(21, 23, 27, 0.94);
   border: 1px solid var(--xunye-line);
   border-radius: 18px;
 }
+.contact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 64px;
+  padding: 0;
+  color: #f7f1e8;
+  background: transparent;
+  border-bottom: 1px solid var(--xunye-line);
+}
+.contact-row.last {
+  border-bottom: 0;
+}
+.row-main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.row-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.row-title {
+  overflow: hidden;
+  color: #f7f1e8;
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-label {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--xunye-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-action {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  margin-left: 10px;
+  color: var(--xunye-muted);
+  font-size: 13px;
+}
 .info-row {
   display: flex;
+  gap: 12px;
   justify-content: space-between;
+  box-sizing: border-box;
+  width: 100%;
   padding: 12px 0;
   border-bottom: 1px solid var(--xunye-line);
   font-size: 14px;
 }
-.info-row.last { border-bottom: none; }
-.info-label { color: var(--xunye-muted); }
-.info-value { color: #d9dde6; }
-.muted { color: var(--xunye-muted); }
+.info-row.last {
+  border-bottom: none;
+}
+.info-label {
+  flex-shrink: 0;
+  color: var(--xunye-muted);
+}
+.info-value {
+  min-width: 0;
+  overflow: hidden;
+  color: #d9dde6;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.muted {
+  color: var(--xunye-muted);
+}
 </style>

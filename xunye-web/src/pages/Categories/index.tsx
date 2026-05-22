@@ -11,6 +11,17 @@ import {
 import type { ProductCategory, CategoryFormData } from '@/types/api';
 import { Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
 
+const darkSelectProps = {
+  className: 'xunye-select',
+  classNames: { popup: { root: 'xunye-select-dropdown' } },
+  styles: {
+    root: { backgroundColor: '#101014', border: '1px solid #2A2A31' },
+    content: { color: '#F4EBDD' },
+    suffix: { color: '#AFA79B' },
+    popup: { root: { backgroundColor: '#1A1A1F', border: '1px solid #2A2A31' } },
+  },
+} as const;
+
 export default function CategoriesPage() {
   const [data, setData] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(false);
@@ -213,6 +224,7 @@ export default function CategoriesPage() {
         width={480}
         destroyOnClose
         styles={{
+          content: { background: '#1A1A1F', border: '1px solid #2A2A31' },
           header: { background: '#1A1A1F', borderBottom: '1px solid #2A2A31', paddingBottom: 16 },
           body: { background: '#1A1A1F', paddingTop: 20 },
           footer: { background: '#1A1A1F', borderTop: '1px solid #2A2A31' },
@@ -245,6 +257,7 @@ export default function CategoriesPage() {
                 { label: '启用', value: 1 },
                 { label: '禁用', value: 0 },
               ]}
+              {...darkSelectProps}
             />
           </Form.Item>
         </Form>

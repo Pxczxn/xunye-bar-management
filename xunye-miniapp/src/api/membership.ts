@@ -23,11 +23,15 @@ export interface CustomerInfoVO {
 
 export interface CustomerWxLoginDTO {
   code: string
+  customerNo?: string
+  phone?: string
+  verifyCode?: string
   nickname?: string
   avatar?: string
 }
 
 export interface CustomerProfileUpdateDTO {
+  customerNo?: string
   phone: string
   nickname?: string
   avatar?: string | null
@@ -69,6 +73,30 @@ export function updateCustomerProfile(data: CustomerProfileUpdateDTO) {
 
 export function wxLoginCustomer(data: CustomerWxLoginDTO) {
   return http.post<CustomerInfoVO>('/api/customer/member/wx-login', data)
+}
+
+export function registerCustomer(data: CustomerWxLoginDTO) {
+  return http.post<CustomerInfoVO>('/api/customer/member/register', data)
+}
+
+export function sendRegisterCode(phone: string) {
+  return http.post<void>('/api/customer/member/register-code', undefined, { phone })
+}
+
+export function sendLoginCode(phone: string) {
+  return http.post<void>('/api/customer/member/login-code', undefined, { phone })
+}
+
+export function phoneLoginByCode(phone: string, verifyCode: string) {
+  return http.post<CustomerInfoVO>('/api/customer/member/phone-login-by-code', { phone, verifyCode })
+}
+
+export function phoneLoginByPassword(phone: string, password: string) {
+  return http.post<CustomerInfoVO>('/api/customer/member/phone-login-by-password', { phone, password })
+}
+
+export function setPassword(phone: string, password: string, verifyCode: string) {
+  return http.post<void>('/api/customer/member/set-password', { phone, password, verifyCode })
 }
 
 export function getMemberLevels() {

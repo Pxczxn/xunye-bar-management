@@ -1,7 +1,9 @@
 package com.xunye.admin.controller;
 
 import com.xunye.admin.common.ApiResponse;
+import com.xunye.admin.dto.CustomerPhoneLoginDTO;
 import com.xunye.admin.dto.CustomerProfileUpdateDTO;
+import com.xunye.admin.dto.CustomerSetPasswordDTO;
 import com.xunye.admin.dto.CustomerWxLoginDTO;
 import com.xunye.admin.dto.OrderCreateDTO;
 import com.xunye.admin.service.CustomerService;
@@ -107,11 +109,45 @@ public class CustomerController {
         return ApiResponse.success(customerService.wxLogin(dto));
     }
 
+    @PostMapping("/member/register")
+    public ApiResponse<CustomerInfoVO> registerMember(@RequestBody CustomerWxLoginDTO dto) {
+        return ApiResponse.success(customerService.registerMember(dto));
+    }
+
+    @PostMapping("/member/register-code")
+    public ApiResponse<Void> sendRegisterCode(@RequestParam String phone) {
+        customerService.sendRegisterCode(phone);
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/member/login-code")
+    public ApiResponse<Void> sendLoginCode(@RequestParam String phone) {
+        customerService.sendLoginCode(phone);
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/member/phone-login-by-code")
+    public ApiResponse<CustomerInfoVO> phoneLoginByCode(@Valid @RequestBody CustomerPhoneLoginDTO dto) {
+        return ApiResponse.success(customerService.phoneLoginByCode(dto));
+    }
+
+    @PostMapping("/member/phone-login-by-password")
+    public ApiResponse<CustomerInfoVO> phoneLoginByPassword(@Valid @RequestBody CustomerPhoneLoginDTO dto) {
+        return ApiResponse.success(customerService.phoneLoginByPassword(dto));
+    }
+
+    @PostMapping("/member/set-password")
+    public ApiResponse<Void> setPassword(@Valid @RequestBody CustomerSetPasswordDTO dto) {
+        customerService.setPassword(dto);
+        return ApiResponse.success();
+    }
+
     @PostMapping("/member/avatar")
     public ApiResponse<String> uploadAvatar(
             @RequestParam String phone,
+            @RequestParam(required = false) String customerNo,
             @RequestParam("file") MultipartFile file) {
-        return ApiResponse.success(customerService.uploadAvatar(phone, file));
+        return ApiResponse.success(customerService.uploadAvatar(phone, customerNo, file));
     }
 
     @GetMapping("/coupons")

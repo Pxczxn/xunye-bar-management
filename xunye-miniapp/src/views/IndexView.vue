@@ -2,19 +2,26 @@
 import type { CustomerProductVO } from '@/api/customer'
 import type { MenuProduct } from '@/store'
 import { computed, onMounted, ref } from 'vue'
-import { listCustomerProducts } from '@/api/customer'
+import { getShopInfo, listCustomerProducts } from '@/api/customer'
 import { useShellState } from '@/composables/useShellState'
 import { useXunyeStore } from '@/store'
+import { getEnvBaseUrl } from '@/utils'
 
 const store = useXunyeStore()
 const { push, goPage, goMenuProduct } = useShellState()
 const products = ref<MenuProduct[]>([])
+const loading = ref(false)
+const banners = ref<string[]>([])
+const bannerLoading = ref(true)
+
+const baseUrl = getEnvBaseUrl()
 
 const tableText = computed(() => store.currentTable?.code || '未选桌')
 const featuredProducts = computed(() => products.value.slice(0, 3))
 
 onMounted(() => {
   fetchFeaturedProducts()
+  fetchBanners()
 })
 
 function toMenuProduct(product: CustomerProductVO): MenuProduct {
@@ -29,8 +36,22 @@ function toMenuProduct(product: CustomerProductVO): MenuProduct {
 }
 
 async function fetchFeaturedProducts() {
+  loading.value = true
   const list = await listCustomerProducts().catch(() => [])
   products.value = list.map(toMenuProduct).slice(0, 6)
+  loading.value = false
+}
+
+async function fetchBanners() {
+  bannerLoading.value = true
+  const shop = await getShopInfo().catch(() => null)
+  if (shop?.bannerImages?.length) {
+    banners.value = shop.bannerImages.map((url) => {
+      if (url.startsWith('http')) return url
+      return baseUrl + url
+    })
+  }
+  bannerLoading.value = false
 }
 
 function handleStartOrder() {
@@ -57,6 +78,25 @@ function openFeaturedProduct(index: number) {
         营业时间 18:00 - 02:00
       </view>
     </view>
+
+    <!-- 首页轮播图 -->
+    <view v-if="banners.length > 0" class="banner-wrap">
+      <swiper
+        class="banner-swiper"
+        :indicator-dots="true"
+        :autoplay="true"
+        :interval="4000"
+        :duration="500"
+        indicator-color="rgba(255,255,255,0.3)"
+        indicator-active-color="#d2a85f"
+        circular
+      >
+        <swiper-item v-for="(url, idx) in banners" :key="idx">
+          <image class="banner-img" mode="aspectFill" lazy-load :src="url" />
+        </swiper-item>
+      </swiper>
+    </view>
+    <view v-else-if="bannerLoading" class="banner-skeleton" />
 
     <view class="notice-pill">
       <uv-icon name="volume-fill" color="#d2a85f" size="18" />
@@ -102,7 +142,10 @@ function openFeaturedProduct(index: number) {
       <view class="section-title">
         <uv-icon name="star-fill" color="#d2a85f" size="18" /> 店长推荐
       </view>
-      <view class="recommend-grid">
+      <view v-if="loading" class="recommend-loading">
+        <uv-loading-icon mode="circle" color="#d2a85f" text="加载中" text-color="#8d929d" />
+      </view>
+      <view v-else class="recommend-grid">
         <view v-if="featuredProducts[0]" class="recommend-card" @tap="openFeaturedProduct(0)">
           <image class="recommend-img" mode="aspectFill" lazy-load :src="featuredProducts[0].image" />
           <view class="recommend-info">
@@ -145,6 +188,30 @@ function openFeaturedProduct(index: number) {
   font-weight: 800;
   letter-spacing: 2px;
 }
+
+/* ========== Banner Swiper ========== */
+.banner-wrap {
+  margin: 4px 16px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.banner-swiper {
+  width: 100%;
+  height: 160px;
+  border-radius: 14px;
+}
+.banner-img {
+  width: 100%;
+  height: 100%;
+  background: var(--xunye-surface-2);
+}
+.banner-skeleton {
+  margin: 4px 16px;
+  height: 160px;
+  border-radius: 14px;
+  background: var(--xunye-surface);
+}
+
 .notice-pill {
   display: flex;
   align-items: center;
@@ -220,6 +287,11 @@ function openFeaturedProduct(index: number) {
   margin-bottom: 10px;
   font-size: 18px;
   font-weight: 700;
+}
+.recommend-loading {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
 }
 .recommend-grid {
   display: grid;

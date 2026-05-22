@@ -1,7 +1,9 @@
 package com.xunye.admin.service;
 
 import com.xunye.admin.dto.OrderCreateDTO;
+import com.xunye.admin.dto.CustomerPhoneLoginDTO;
 import com.xunye.admin.dto.CustomerProfileUpdateDTO;
+import com.xunye.admin.dto.CustomerSetPasswordDTO;
 import com.xunye.admin.dto.CustomerWxLoginDTO;
 import com.xunye.admin.vo.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,7 +43,19 @@ public interface CustomerService {
 
     CustomerInfoVO wxLogin(CustomerWxLoginDTO dto);
 
-    String uploadAvatar(String phone, MultipartFile file);
+    CustomerInfoVO registerMember(CustomerWxLoginDTO dto);
+
+    void sendRegisterCode(String phone);
+
+    void sendLoginCode(String phone);
+
+    CustomerInfoVO phoneLoginByCode(CustomerPhoneLoginDTO dto);
+
+    CustomerInfoVO phoneLoginByPassword(CustomerPhoneLoginDTO dto);
+
+    void setPassword(CustomerSetPasswordDTO dto);
+
+    String uploadAvatar(String phone, String customerNo, MultipartFile file);
 
     List<CustomerCouponVO> listCoupons(String phone);
 

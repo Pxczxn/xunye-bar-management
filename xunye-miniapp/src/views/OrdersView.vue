@@ -1,12 +1,24 @@
 <script lang="ts" setup>
 import type { OrderPageVO } from '@/api/customer'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { listCustomerOrders } from '@/api/customer'
 import { useShellState } from '@/composables/useShellState'
 import { useXunyeStore } from '@/store'
 
-const { push } = useShellState()
+const { push, activeView, showToast } = useShellState()
 const store = useXunyeStore()
+
+// 切换到该 tab 时自动刷新，但 30 秒内不重复调接口
+let lastTabFetchTime = 0
+watch(activeView, (val) => {
+  if (val === 'orders') {
+    const now = Date.now()
+    if (now - lastTabFetchTime > 30000) {
+      lastTabFetchTime = now
+      fetchOrders(true)
+    }
+  }
+})
 
 interface OrderCard {
   id: number
@@ -24,9 +36,14 @@ interface OrderCard {
 
 const rawOrders = ref<OrderPageVO[]>([])
 const loading = ref(false)
+const loadingMore = ref(false)
+const allLoaded = ref(false)
+const pageNum = ref(1)
+const pageSize = 20
 
-const currentYear = ref(2026)
-const currentMonth = 5
+const now = new Date()
+const currentYear = ref(now.getFullYear())
+const currentMonth = now.getMonth() + 1
 const selectedFilter = ref('all')
 const selectedStatus = ref('all')
 const selectedTable = ref('all')
@@ -36,16 +53,42 @@ const dateSheetOpen = ref(false)
 const filterSheet = ref<'status' | 'table' | 'type' | 'product' | null>(null)
 
 onMounted(() => {
+  lastTabFetchTime = Date.now()
   fetchOrders()
 })
 
-async function fetchOrders() {
-  loading.value = true
+async function fetchOrders(reset = false) {
+  if (reset) {
+    pageNum.value = 1
+    allLoaded.value = false
+  }
+  if (allLoaded.value)
+    return
+  if (reset)
+    loading.value = true
+  else loadingMore.value = true
   try {
-    rawOrders.value = await listCustomerOrders({ all: true, page: 1, size: 100 })
+    const list = await listCustomerOrders({ all: false, page: pageNum.value, size: pageSize })
+    if (reset) {
+      rawOrders.value = list
+    }
+    else {
+      rawOrders.value.push(...list)
+    }
+    if (list.length < pageSize) {
+      allLoaded.value = true
+    }
+    pageNum.value++
   }
   finally {
     loading.value = false
+    loadingMore.value = false
+  }
+}
+
+function onScrollToLower() {
+  if (!loadingMore.value && !allLoaded.value) {
+    fetchOrders()
   }
 }
 
@@ -91,18 +134,41 @@ const orderCards = computed<OrderCard[]>(() => rawOrders.value.map((order) => {
 const months = computed(() => Array.from({ length: 12 }, (_, i) => {
   const value = `${currentYear.value}-${String(i + 1).padStart(2, '0')}`
   const count = orderCards.value.filter(o => o.month === value).length
-  const isFuture = currentYear.value > 2026 || (currentYear.value === 2026 && i + 1 > currentMonth)
+  const isFuture = currentYear.value > now.getFullYear() || (currentYear.value === now.getFullYear() && i + 1 > currentMonth)
   return { value, label: `${i + 1}月`, count, isFuture }
 }))
 
+const quickMonths = computed(() => {
+  const result: Array<{ value: string, label: string }> = []
+  let y = currentYear.value
+  let m = currentMonth
+  for (let i = 0; i < 3; i++) {
+    result.push({ value: `${y}-${String(m).padStart(2, '0')}`, label: `${m}月` })
+    m -= 1
+    if (m <= 0) {
+      m = 12
+      y -= 1
+    }
+  }
+  return result
+})
+
+const filterLabel = computed(() => {
+  if (selectedFilter.value === 'all')
+    return `${currentYear.value}年${currentMonth}月`
+  if (selectedFilter.value === 'week')
+    return '近一周'
+  const [y, m] = selectedFilter.value.split('-')
+  return `${y}年${Number(m)}月`
+})
 const productOptions = computed(() => {
-  const drinks = ['寻野特调迷雾', '日落大道', '麦卡伦12年单杯', '长岛冰茶', '百威啤酒']
-  const snacks = ['黑松露薯条']
+  const allNames = Array.from(new Set(orderCards.value.flatMap(o => o.items)))
+  const snackNames = ['黑松露薯条', '佐酒小食', '薯条', '松露']
   if (selectedItemType.value === 'drink')
-    return drinks
+    return allNames.filter(n => !snackNames.some(s => n.includes(s)))
   if (selectedItemType.value === 'snack')
-    return snacks
-  return [...drinks, ...snacks]
+    return allNames.filter(n => snackNames.some(s => n.includes(s)))
+  return allNames
 })
 
 const filteredOrders = computed(() => {
@@ -116,7 +182,7 @@ const filteredOrders = computed(() => {
   if (selectedTable.value !== 'all')
     result = result.filter(o => o.table.startsWith(selectedTable.value))
   if (selectedItemType.value !== 'all') {
-    const snackNames = ['黑松露薯条']
+    const snackNames = ['黑松露薯条', '佐酒小食', '薯条', '松露']
     result = result.filter(o => selectedItemType.value === 'snack'
       ? o.items.some(i => snackNames.some(s => i.includes(s)))
       : o.items.some(i => !snackNames.some(s => i.includes(s))))
@@ -140,7 +206,7 @@ function selectFilter(type: string) {
 
 function selectMonth(value: string) {
   const [y, m] = value.split('-').map(Number)
-  if (y > 2026 || (y === 2026 && m > currentMonth))
+  if (y > now.getFullYear() || (y === now.getFullYear() && m > currentMonth))
     return
   selectedFilter.value = value
   closeDatePicker()
@@ -203,7 +269,7 @@ function openOrder(order: OrderCard) {
       </view>
       <button class="date-capsule" @tap="openDatePicker">
         <view class="date-capsule-inner">
-          <text>2026年5月</text>
+          <text>{{ filterLabel }}</text>
           <text class="date-arrow">▾</text>
         </view>
       </button>
@@ -215,11 +281,11 @@ function openOrder(order: OrderCard) {
       <button class="chip" :class="{ active: selectedFilter === 'week' }" @tap="selectFilter('week')">
         近一周
       </button>
-      <button class="chip" :class="{ active: selectedFilter === '2026-05' }" @tap="selectFilter('2026-05')">
-        5月
-      </button>
-      <button class="chip" :class="{ active: selectedFilter === '2026-04' }" @tap="selectFilter('2026-04')">
-        4月
+      <button
+        v-for="m in quickMonths" :key="m.value" class="chip"
+        :class="{ active: selectedFilter === m.value }" @tap="selectFilter(m.value)"
+      >
+        {{ m.label }}
       </button>
       <button class="chip more-chip" @tap="openDatePicker">
         更多
@@ -242,8 +308,14 @@ function openOrder(order: OrderCard) {
         重置
       </button>
     </view>
-    <scroll-view class="orders-list" scroll-y enhanced show-scrollbar="false">
-      <view v-if="loading" class="orders-empty">
+    <scroll-view
+      class="orders-list" scroll-y enhanced show-scrollbar="false"
+      refresher-enabled
+      :refresher-triggered="loading"
+      @refresherrefresh="fetchOrders(true)"
+      @scrolltolower="onScrollToLower"
+    >
+      <view v-if="loading && !rawOrders.length" class="orders-empty">
         <uv-loading-icon mode="circle" color="#d2a85f" text="正在读取订单" text-color="#8d929d" />
       </view>
       <view v-else-if="!filteredOrders.length" class="orders-empty">
@@ -277,6 +349,12 @@ function openOrder(order: OrderCard) {
           <text class="order-amount">¥{{ order.amount.toFixed(2) }}</text>
         </view>
       </view>
+      <view v-if="loadingMore" class="orders-load-more">
+        <uv-loading-icon mode="circle" color="#d2a85f" size="20" text="加载更多" text-color="#8d929d" />
+      </view>
+      <view v-if="allLoaded && filteredOrders.length > 0" class="orders-all-loaded">
+        已加载全部订单
+      </view>
     </scroll-view>
 
     <!-- Date Sheet -->
@@ -299,7 +377,7 @@ function openOrder(order: OrderCard) {
             ‹
           </button>
           <text>{{ currentYear }} 年</text>
-          <button class="icon-button" :class="{ disabled: currentYear >= 2026 }" @tap="currentYear < 2026 && currentYear++">
+          <button class="icon-button" :class="{ disabled: currentYear >= now.getFullYear() }" @tap="currentYear < now.getFullYear() && currentYear++">
             ›
           </button>
         </view>
@@ -340,6 +418,12 @@ function openOrder(order: OrderCard) {
           </button>
           <button class="filter-option" :class="{ active: selectedStatus === '制作中' }" @tap="chooseStatus('制作中')">
             <text>制作中</text><text v-if="selectedStatus === '制作中'">✓</text>
+          </button>
+          <button class="filter-option" :class="{ active: selectedStatus === '待支付' }" @tap="chooseStatus('待支付')">
+            <text>待支付</text><text v-if="selectedStatus === '待支付'">✓</text>
+          </button>
+          <button class="filter-option" :class="{ active: selectedStatus === '已取消' }" @tap="chooseStatus('已取消')">
+            <text>已取消</text><text v-if="selectedStatus === '已取消'">✓</text>
           </button>
         </view>
         <view v-else-if="filterSheet === 'table'" class="filter-options">
@@ -524,6 +608,17 @@ function openOrder(order: OrderCard) {
   align-items: center;
   gap: 8px;
   padding: 48px 0;
+}
+.orders-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+.orders-all-loaded {
+  text-align: center;
+  padding: 12px 0;
+  font-size: 12px;
+  color: #555;
 }
 .order-card {
   padding: 14px;

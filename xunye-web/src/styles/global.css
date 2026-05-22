@@ -49,15 +49,49 @@ body {
 .ant-modal {
   max-width: 860px !important;
 }
+body .ant-modal .ant-modal-content,
+body .ant-modal-root .ant-modal-content,
 .ant-modal-content {
   background: #1A1A1F !important;
+  background-color: #1A1A1F !important;
   border: 1px solid #2A2A31 !important;
+  color: #F4EBDD !important;
 }
+body .ant-modal .ant-modal-header,
+body .ant-modal-root .ant-modal-header,
 .ant-modal-header {
   background: #1A1A1F !important;
+  background-color: #1A1A1F !important;
+  border-bottom: 1px solid #2A2A31 !important;
+  color: #F4EBDD !important;
 }
-.ant-modal-title,
+body .ant-modal .ant-modal-body,
+body .ant-modal-root .ant-modal-body,
+.ant-modal-body {
+  background: #1A1A1F !important;
+  background-color: #1A1A1F !important;
+  color: #F4EBDD !important;
+}
+body .ant-modal .ant-modal-footer,
+body .ant-modal-root .ant-modal-footer,
+.ant-modal-footer {
+  background: #1A1A1F !important;
+  background-color: #1A1A1F !important;
+  border-top: 1px solid #2A2A31 !important;
+}
+body .ant-modal .ant-modal-close,
+body .ant-modal-root .ant-modal-close,
 .ant-modal-close {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #AFA79B !important;
+}
+body .ant-modal .ant-modal-close:hover,
+body .ant-modal-root .ant-modal-close:hover,
+.ant-modal-close:hover {
+  color: #D6A85A !important;
+}
+.ant-modal-title {
   color: #F4EBDD !important;
 }
 .ant-modal-footer .ant-btn-default {
@@ -82,36 +116,99 @@ body {
   margin-bottom: 12px !important;
 }
 
-/* Input / InputNumber */
+/* Input / InputNumber / InputAffixWrapper */
 .ant-input,
-.ant-input-number {
+.ant-input-number,
+.ant-input-affix-wrapper {
   background: #111114 !important;
   border-color: #2A2A31 !important;
   color: #F4EBDD !important;
 }
 .ant-input::placeholder,
-.ant-input-number-input::placeholder {
+.ant-input-number-input::placeholder,
+.ant-input-affix-wrapper .ant-input::placeholder {
   color: #6F6A63 !important;
 }
 .ant-input-number-input {
   color: #F4EBDD !important;
 }
 .ant-input:hover,
-.ant-input-number:hover {
+.ant-input-number:hover,
+.ant-input-affix-wrapper:hover {
   border-color: #D6A85A !important;
 }
 .ant-input:focus,
-.ant-input-number-focused {
+.ant-input-number-focused,
+.ant-input-affix-wrapper-focused {
   border-color: #D6A85A !important;
   box-shadow: 0 0 0 2px rgba(214, 168, 90, 0.15) !important;
 }
-.ant-input-number-handler-wrap {
+.ant-input-affix-wrapper .ant-input {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.ant-input-affix-wrapper .anticon {
+  color: #6F6A63 !important;
+}
+.ant-input-affix-wrapper .anticon:hover {
+  color: #D6A85A !important;
+}
+body .ant-input-number .ant-input-number-handler-wrap,
+body .ant-input-number .ant-input-number-handler,
+body .ant-input-number .ant-input-number-handler-up,
+body .ant-input-number .ant-input-number-handler-down,
+body .ant-input-number-group-wrapper .ant-input-number-handler-wrap,
+body .ant-input-number-group-wrapper .ant-input-number-handler,
+body .ant-input-number-group-wrapper .ant-input-number-handler-up,
+body .ant-input-number-group-wrapper .ant-input-number-handler-down,
+.ant-input-number-handler-wrap,
+.ant-input-number-handler,
+.ant-input-number-handler-up,
+.ant-input-number-handler-down {
   background: #111114 !important;
+  background-color: #111114 !important;
   border-color: #2A2A31 !important;
 }
+body .ant-input-number .ant-input-number-handler-wrap *,
+body .ant-input-number-group-wrapper .ant-input-number-handler-wrap * {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+body .ant-input-number .ant-input-number-handler-up-inner,
+body .ant-input-number .ant-input-number-handler-down-inner,
+body .ant-input-number-group-wrapper .ant-input-number-handler-up-inner,
+body .ant-input-number-group-wrapper .ant-input-number-handler-down-inner,
+.ant-input-number-handler-up-inner,
+.ant-input-number-handler-down-inner,
+.ant-input-number-handler-up-inner .anticon,
+.ant-input-number-handler-down-inner .anticon {
+  color: #6F6A63 !important;
+}
+body .ant-input-number .ant-input-number-handler:hover .ant-input-number-handler-up-inner,
+body .ant-input-number .ant-input-number-handler:hover .ant-input-number-handler-down-inner,
+body .ant-input-number-group-wrapper .ant-input-number-handler:hover .ant-input-number-handler-up-inner,
+body .ant-input-number-group-wrapper .ant-input-number-handler:hover .ant-input-number-handler-down-inner,
 .ant-input-number-handler:hover .ant-input-number-handler-up-inner,
-.ant-input-number-handler:hover .ant-input-number-handler-down-inner {
+.ant-input-number-handler:hover .ant-input-number-handler-down-inner,
+.ant-input-number-handler:hover .ant-input-number-handler-up-inner .anticon,
+.ant-input-number-handler:hover .ant-input-number-handler-down-inner .anticon {
   color: #D6A85A !important;
+}
+
+
+/* InputNumber addon (addonBefore / addonAfter) dark theme */
+.ant-input-number-outlined.ant-input-number-group-wrapper .ant-input-number-group-addon {
+  background: #111114 !important;
+  border-color: #2A2A31 !important;
+  color: #6F6A63 !important;
+}
+.ant-input-number-group-wrapper .ant-input-number-group .ant-input-number-group-addon:first-child {
+  background: #111114 !important;
+}
+.ant-input-number-group-wrapper .ant-input-number-group .ant-input-number-group-addon:last-child {
+  background: #111114 !important;
 }
 .ant-input-textarea textarea {
   background: #111114 !important;
@@ -271,22 +368,27 @@ body {
 }
 
 /* AutoComplete - xunye-autocomplete 深色覆盖 */
-.xunye-autocomplete.ant-select .ant-select-selector {
+.xunye-autocomplete .ant-select-selector {
   background: #101014 !important;
   background-color: #101014 !important;
   border-color: #2A2A31 !important;
   color: #F4EBDD !important;
 }
-.xunye-autocomplete.ant-select .ant-select-selection-search-input {
+.xunye-autocomplete .ant-select-selection-search-input {
   color: #F4EBDD !important;
 }
-.xunye-autocomplete.ant-select .ant-select-selection-placeholder {
+.xunye-autocomplete .ant-select-selection-placeholder {
   color: #6F6A63 !important;
 }
-.xunye-autocomplete.ant-select:not(.ant-select-disabled):hover .ant-select-selector {
+.xunye-autocomplete input {
+  color: #F4EBDD !important;
+}
+.xunye-autocomplete:hover .ant-select-selector,
+.xunye-autocomplete:not(.ant-select-disabled):hover .ant-select-selector {
   border-color: #D6A85A !important;
 }
-.xunye-autocomplete.ant-select.ant-select-focused .ant-select-selector {
+.xunye-autocomplete.ant-select-focused .ant-select-selector,
+.xunye-autocomplete .ant-select-focused .ant-select-selector {
   border-color: #D6A85A !important;
   box-shadow: 0 0 0 2px rgba(214, 168, 90, 0.15) !important;
 }
@@ -522,7 +624,8 @@ body {
 }
 
 /* Orders Page - Confirm Modal (cancel order) Deep Dark Theme Override */
-.xunye-order-confirm-modal {
+.xunye-order-confirm-modal,
+.xunye-confirm-modal {
   &.ant-modal-root .ant-modal-wrap {
     background: rgba(11, 11, 15, 0.85) !important;
   }

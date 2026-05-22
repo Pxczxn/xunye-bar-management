@@ -40,6 +40,9 @@ public class Customer {
 
     private BigDecimal balance;
 
+    /** BCrypt hashed password */
+    private String password;
+
     private Integer totalOrders;
 
     private BigDecimal totalAmount;

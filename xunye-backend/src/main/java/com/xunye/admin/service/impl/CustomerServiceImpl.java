@@ -2,17 +2,21 @@ package com.xunye.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xunye.admin.common.BusinessException;
+import com.xunye.admin.dto.CustomerPhoneLoginDTO;
 import com.xunye.admin.dto.CustomerProfileUpdateDTO;
+import com.xunye.admin.dto.CustomerSetPasswordDTO;
 import com.xunye.admin.dto.CustomerWxLoginDTO;
 import com.xunye.admin.dto.OrderCreateDTO;
 import com.xunye.admin.entity.*;
 import com.xunye.admin.mapper.*;
 import com.xunye.admin.service.CustomerService;
+import com.xunye.admin.service.SystemConfigService;
 import com.xunye.admin.vo.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.BadSqlGrammarException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -35,6 +39,12 @@ import java.util.stream.Collectors;
 @Slf4j
 public class CustomerServiceImpl implements CustomerService {
 
+    private static final Map<String, RegisterCode> REGISTER_CODES = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, RegisterCode> LOGIN_CODES = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long REGISTER_CODE_TTL_SECONDS = 300;
+    private static final long REGISTER_CODE_SEND_INTERVAL_SECONDS = 30;
+    private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
+
     private final BarTableMapper barTableMapper;
     private final TableAreaMapper tableAreaMapper;
     private final ProductCategoryMapper categoryMapper;
@@ -46,17 +56,22 @@ public class CustomerServiceImpl implements CustomerService {
     private final CustomerCouponMapper customerCouponMapper;
     private final CustomerPointsRecordMapper customerPointsRecordMapper;
     private final MemberActivityMapper memberActivityMapper;
+    private final SystemConfigMapper systemConfigMapper;
+    private final SystemConfigService systemConfigService;
 
     @Value("${file.upload.base-path}")
     private String fileUploadBasePath;
 
     @Override
     public ShopInfoVO getShopInfo() {
+        ShopConfigVO shopConfig = systemConfigService.getShopConfig();
+        MiniappConfigVO miniappConfig = systemConfigService.getMiniappConfig();
         ShopInfoVO vo = new ShopInfoVO();
-        vo.setName("寻野");
-        vo.setSlogan("乘兴而去，尽兴而归。");
-        vo.setBusinessHours("18:00 - 02:00");
-        vo.setNotice("未成年人禁止饮酒，请理性消费。");
+        vo.setName(shopConfig.getName());
+        vo.setSlogan(shopConfig.getSlogan());
+        vo.setBusinessHours(shopConfig.getBusinessHours());
+        vo.setNotice(shopConfig.getNotice());
+        vo.setBannerImages(miniappConfig.getBannerImages());
         return vo;
     }
 
@@ -438,6 +453,14 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setPoints(customer.getPoints() == null ? BigDecimal.ZERO : customer.getPoints());
         vo.setTotalOrders(customer.getTotalOrders() == null ? 0 : customer.getTotalOrders());
         vo.setTotalAmount(customer.getTotalAmount() == null ? BigDecimal.ZERO : customer.getTotalAmount());
+
+        LambdaQueryWrapper<CustomerCoupon> couponWrapper = new LambdaQueryWrapper<>();
+        couponWrapper.eq(CustomerCoupon::getPhone, phone)
+                     .eq(CustomerCoupon::getUsed, 0)
+                     .gt(CustomerCoupon::getValidUntil, java.time.LocalDate.now());
+        Long couponCount = customerCouponMapper.selectCount(couponWrapper);
+        vo.setCoupons(couponCount == null ? 0 : couponCount.intValue());
+
         return vo;
     }
 
@@ -450,9 +473,7 @@ public class CustomerServiceImpl implements CustomerService {
         wrapper.eq(Customer::getPhone, phone);
         Customer customer = customerMapper.selectOne(wrapper);
         if (customer == null) {
-            Customer created = createDefaultCustomer(phone);
-            customerMapper.insert(created);
-            return toCustomerInfoVO(created);
+            return new CustomerInfoVO();
         }
         return toCustomerInfoVO(customer);
     }
@@ -460,16 +481,16 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CustomerInfoVO updateCustomerProfile(CustomerProfileUpdateDTO dto) {
-        LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Customer::getPhone, dto.getPhone());
-        Customer customer = customerMapper.selectOne(wrapper);
+        Customer customer = findCustomer(dto.getPhone(), dto.getCustomerNo());
         if (customer == null) {
             customer = createDefaultCustomer(dto.getPhone());
-            customer.setCreatedAt(LocalDateTime.now());
+        } else if (!Objects.equals(customer.getPhone(), dto.getPhone())) {
+            ensurePhoneAvailable(dto.getPhone(), customer.getId());
+            customer.setPhone(dto.getPhone());
         }
 
         if (StringUtils.hasText(dto.getNickname())) {
-            customer.setNickname(dto.getNickname());
+            customer.setNickname(dto.getNickname().trim());
         }
         customer.setAvatar(dto.getAvatar());
         customer.setBirthday(dto.getBirthday());
@@ -493,13 +514,17 @@ public class CustomerServiceImpl implements CustomerService {
             throw new BusinessException("微信登录 code 不能为空");
         }
         String openid = "mock_openid_" + dto.getCode();
-        LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Customer::getOpenid, openid);
-        Customer customer = customerMapper.selectOne(wrapper);
+        Customer customer = findCustomer(dto.getPhone(), dto.getCustomerNo());
         if (customer == null) {
-            customer = createDefaultCustomer("WX" + System.currentTimeMillis());
+            LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Customer::getOpenid, openid);
+            customer = customerMapper.selectOne(wrapper);
+        }
+        if (customer == null) {
+            throw new BusinessException(404, "会员不存在");
+        }
+        if (!StringUtils.hasText(customer.getOpenid())) {
             customer.setOpenid(openid);
-            customerMapper.insert(customer);
         }
         if (StringUtils.hasText(dto.getNickname())) {
             customer.setNickname(dto.getNickname());
@@ -513,8 +538,148 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    public void sendRegisterCode(String phone) {
+        String normalizedPhone = normalizeRegisterPhone(phone);
+        ensurePhoneAvailable(normalizedPhone, null);
+        sendCode(REGISTER_CODES, normalizedPhone);
+    }
+
+    @Override
+    public void sendLoginCode(String phone) {
+        String normalizedPhone = normalizeRegisterPhone(phone);
+        // Ensure customer exists for login
+        LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Customer::getPhone, normalizedPhone);
+        Customer customer = customerMapper.selectOne(wrapper);
+        if (customer == null) {
+            throw new BusinessException("该手机号未注册会员");
+        }
+        sendCode(LOGIN_CODES, normalizedPhone);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
-    public String uploadAvatar(String phone, MultipartFile file) {
+    public CustomerInfoVO phoneLoginByCode(CustomerPhoneLoginDTO dto) {
+        String phone = normalizeRegisterPhone(dto.getPhone());
+        if (!StringUtils.hasText(dto.getVerifyCode())) {
+            throw new BusinessException("验证码不能为空");
+        }
+        verifyCode(LOGIN_CODES, phone, dto.getVerifyCode());
+        Customer customer = customerMapper.selectOne(new LambdaQueryWrapper<Customer>()
+                .eq(Customer::getPhone, phone));
+        if (customer == null) {
+            throw new BusinessException(404, "会员不存在");
+        }
+        LOGIN_CODES.remove(phone);
+        return toCustomerInfoVO(customer);
+    }
+
+    @Override
+    public CustomerInfoVO phoneLoginByPassword(CustomerPhoneLoginDTO dto) {
+        String phone = normalizeRegisterPhone(dto.getPhone());
+        if (!StringUtils.hasText(dto.getPassword())) {
+            throw new BusinessException("密码不能为空");
+        }
+        Customer customer = customerMapper.selectOne(new LambdaQueryWrapper<Customer>()
+                .eq(Customer::getPhone, phone));
+        if (customer == null) {
+            throw new BusinessException(404, "会员不存在");
+        }
+        if (!StringUtils.hasText(customer.getPassword())) {
+            throw new BusinessException("未设置密码，请使用验证码登录");
+        }
+        if (!PASSWORD_ENCODER.matches(dto.getPassword(), customer.getPassword())) {
+            throw new BusinessException("密码错误");
+        }
+        return toCustomerInfoVO(customer);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void setPassword(CustomerSetPasswordDTO dto) {
+        String phone = normalizeRegisterPhone(dto.getPhone());
+        if (!StringUtils.hasText(dto.getPassword())) {
+            throw new BusinessException("密码不能为空");
+        }
+        if (dto.getPassword().length() < 6 || dto.getPassword().length() > 64) {
+            throw new BusinessException("密码长度6-64位");
+        }
+        verifyCode(LOGIN_CODES, phone, dto.getVerifyCode());
+        Customer customer = customerMapper.selectOne(new LambdaQueryWrapper<Customer>()
+                .eq(Customer::getPhone, phone));
+        if (customer == null) {
+            throw new BusinessException(404, "会员不存在");
+        }
+        customer.setPassword(PASSWORD_ENCODER.encode(dto.getPassword()));
+        customer.setUpdatedAt(LocalDateTime.now());
+        customerMapper.updateById(customer);
+        LOGIN_CODES.remove(phone);
+    }
+
+    private void sendCode(Map<String, RegisterCode> codeMap, String phone) {
+        RegisterCode cached = codeMap.get(phone);
+        if (cached != null && cached.sentAt().plusSeconds(REGISTER_CODE_SEND_INTERVAL_SECONDS).isAfter(LocalDateTime.now())) {
+            throw new BusinessException("验证码发送过于频繁，请稍后再试");
+        }
+        String code = String.format("%06d", new Random().nextInt(1_000_000));
+        LocalDateTime now = LocalDateTime.now();
+        codeMap.put(phone, new RegisterCode(code, now.plusSeconds(REGISTER_CODE_TTL_SECONDS), now));
+        log.info("验证码 phone={}, code={}", phone, code);
+    }
+
+    private void verifyCode(Map<String, RegisterCode> codeMap, String phone, String code) {
+        RegisterCode cached = codeMap.get(phone);
+        if (cached == null || cached.expiresAt().isBefore(LocalDateTime.now())) {
+            codeMap.remove(phone);
+            throw new BusinessException("验证码已过期，请重新获取");
+        }
+        if (!Objects.equals(cached.code(), code.trim())) {
+            throw new BusinessException("验证码不正确");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CustomerInfoVO registerMember(CustomerWxLoginDTO dto) {
+        if (!StringUtils.hasText(dto.getCode())) {
+            throw new BusinessException("微信登录 code 不能为空");
+        }
+        String phone = normalizeRegisterPhone(dto.getPhone());
+        verifyRegisterCode(phone, dto.getVerifyCode());
+        ensurePhoneAvailable(phone, null);
+        String openid = "mock_openid_" + dto.getCode();
+        Customer customer = findCustomer(null, dto.getCustomerNo());
+        if (customer == null) {
+            customer = customerMapper.selectOne(new LambdaQueryWrapper<Customer>()
+                    .eq(Customer::getOpenid, openid));
+        }
+        if (customer == null) {
+            customer = createDefaultCustomer(phone);
+            customer.setOpenid(openid);
+            customerMapper.insert(customer);
+        }
+        else {
+            ensurePhoneAvailable(phone, customer.getId());
+            customer.setPhone(phone);
+            if (!StringUtils.hasText(customer.getOpenid())) {
+                customer.setOpenid(openid);
+            }
+        }
+        if (StringUtils.hasText(dto.getNickname())) {
+            customer.setNickname(dto.getNickname().trim());
+        }
+        if (StringUtils.hasText(dto.getAvatar())) {
+            customer.setAvatar(dto.getAvatar());
+        }
+        customer.setUpdatedAt(LocalDateTime.now());
+        customerMapper.updateById(customer);
+        REGISTER_CODES.remove(phone);
+        return toCustomerInfoVO(customer);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String uploadAvatar(String phone, String customerNo, MultipartFile file) {
         if (!StringUtils.hasText(phone)) {
             throw new BusinessException("手机号不能为空");
         }
@@ -535,7 +700,10 @@ public class CustomerServiceImpl implements CustomerService {
             Files.createDirectories(uploadPath);
             file.transferTo(uploadPath.resolve(filename).toFile());
             String avatarUrl = "/images/avatars/" + filename;
-            Customer customer = ensureCustomer(phone);
+            Customer customer = findCustomer(phone, customerNo);
+            if (customer == null) {
+                customer = ensureCustomer(phone);
+            }
             customer.setAvatar(avatarUrl);
             customer.setUpdatedAt(LocalDateTime.now());
             customerMapper.updateById(customer);
@@ -717,6 +885,60 @@ public class CustomerServiceImpl implements CustomerService {
         Customer created = createDefaultCustomer(phone);
         customerMapper.insert(created);
         return created;
+    }
+
+    private Customer findCustomer(String phone, String customerNo) {
+        if (StringUtils.hasText(customerNo)) {
+            Customer byNo = customerMapper.selectOne(new LambdaQueryWrapper<Customer>()
+                    .eq(Customer::getCustomerNo, customerNo));
+            if (byNo != null) {
+                return byNo;
+            }
+        }
+        if (!StringUtils.hasText(phone)) {
+            return null;
+        }
+        return customerMapper.selectOne(new LambdaQueryWrapper<Customer>()
+                .eq(Customer::getPhone, phone));
+    }
+
+    private void ensurePhoneAvailable(String phone, Long currentCustomerId) {
+        if (!StringUtils.hasText(phone)) {
+            throw new BusinessException("手机号不能为空");
+        }
+        Customer exists = customerMapper.selectOne(new LambdaQueryWrapper<Customer>()
+                .eq(Customer::getPhone, phone));
+        if (exists != null && !Objects.equals(exists.getId(), currentCustomerId)) {
+            throw new BusinessException("该手机号已绑定其他顾客");
+        }
+    }
+
+    private String normalizeRegisterPhone(String phone) {
+        if (!StringUtils.hasText(phone)) {
+            throw new BusinessException("手机号不能为空");
+        }
+        String normalizedPhone = phone.trim();
+        if (!normalizedPhone.matches("^1[3-9]\\d{9}$")) {
+            throw new BusinessException("手机号格式不正确");
+        }
+        return normalizedPhone;
+    }
+
+    private void verifyRegisterCode(String phone, String verifyCode) {
+        if (!StringUtils.hasText(verifyCode)) {
+            throw new BusinessException("验证码不能为空");
+        }
+        RegisterCode cached = REGISTER_CODES.get(phone);
+        if (cached == null || cached.expiresAt().isBefore(LocalDateTime.now())) {
+            REGISTER_CODES.remove(phone);
+            throw new BusinessException("验证码已过期，请重新获取");
+        }
+        if (!Objects.equals(cached.code(), verifyCode.trim())) {
+            throw new BusinessException("验证码不正确");
+        }
+    }
+
+    private record RegisterCode(String code, LocalDateTime expiresAt, LocalDateTime sentAt) {
     }
 
     private BigDecimal resolveDiscount(String phone, Long couponId, BigDecimal totalAmount) {

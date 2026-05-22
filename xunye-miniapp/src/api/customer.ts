@@ -145,3 +145,44 @@ export function exchangePointsReward(phone: string, rewardId: number) {
 export function listCustomerPointsRecords(phone: string) {
   return http.get<CustomerPointsRecordVO[]>('/api/customer/points/records', { phone })
 }
+
+export interface CustomerMessageVO {
+  id: number
+  title: string
+  content: string
+  type: string
+  isRead: number
+  relatedOrderId: number | null
+  createdAt: string
+}
+
+export function listCustomerMessages(phone: string) {
+  return http.get<CustomerMessageVO[]>('/api/customer/messages', { phone })
+}
+
+export interface CustomerStatsVO {
+  points: number
+  coupons: number
+  totalOrders: number
+  totalAmount: number
+}
+
+export function getCustomerStats(phone: string) {
+  return http.get<CustomerStatsVO>('/api/customer/stats', { phone })
+}
+
+export function getPaymentStatus(paymentNo: string) {
+  return http.get<PaymentVO>(`/api/customer/payments/${paymentNo}`)
+}
+
+export interface ShopInfoVO {
+  name: string
+  slogan: string
+  businessHours: string
+  notice: string
+  bannerImages: string[]
+}
+
+export function getShopInfo() {
+  return http.get<ShopInfoVO>('/api/customer/shop/info')
+}

@@ -180,6 +180,7 @@ export default function StaffPage() {
     const nextStatus = item.status === 1 ? 0 : 1;
     const label = STATUS_MAP[nextStatus];
     Modal.confirm({
+      rootClassName: 'xunye-confirm-modal',
       title: `确认${label}`,
       content: `确定要${label}「${item.nickname}」吗？`,
       okText: '确认',
@@ -219,6 +220,7 @@ export default function StaffPage() {
 
   const handleDelete = (item: StaffItem) => {
     Modal.confirm({
+      rootClassName: 'xunye-confirm-modal',
       title: '确认删除',
       content: `确定要删除员工「${item.nickname}」吗？此操作不可恢复。`,
       okText: '删除',
@@ -502,7 +504,7 @@ export default function StaffPage() {
         styles={{
           root: { background: 'transparent' },
           wrapper: { background: 'rgba(0, 0, 0, 0.65)' },
-          container: { background: '#1A1A1F' },
+          content: { background: '#1A1A1F', border: '1px solid #2A2A31' },
           header: { background: '#1A1A1F', borderBottom: '1px solid #2A2A31', paddingBottom: 16 },
           body: { background: '#1A1A1F', paddingTop: 20 },
           footer: { background: '#1A1A1F', borderTop: '1px solid #2A2A31' },
@@ -587,7 +589,7 @@ export default function StaffPage() {
         styles={{
           root: { background: 'transparent' },
           wrapper: { background: 'rgba(0, 0, 0, 0.65)' },
-          container: { background: '#1A1A1F' },
+          content: { background: '#1A1A1F', border: '1px solid #2A2A31' },
           header: { background: '#1A1A1F', borderBottom: '1px solid #2A2A31', paddingBottom: 16 },
           body: { background: '#1A1A1F', paddingTop: 20 },
           footer: { background: '#1A1A1F', borderTop: '1px solid #2A2A31' },
