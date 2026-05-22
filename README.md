@@ -1,115 +1,220 @@
-# XUNYE Bar Management System
+# 寻野酒吧管理系统 (XUNYE Bar Management System)
 
-[中文说明](README.zh-CN.md)
+## 项目简介
+寻野酒吧管理系统是一套专为酒吧运营设计的综合管理解决方案，提供从员工管理、商品库存到订单处理和营业数据分析的全流程功能支持，帮助酒吧实现数字化运营与高效管理。
 
-XUNYE is a full-stack bar management system for daily store operations. It covers staff accounts, product and inventory management, table management, POS ordering, customer mini-program ordering, payment flow, kitchen workflow, order tracking, and business dashboard analytics.
+## 环境要求
+| 依赖 | 版本 |
+|------|------|
+| Node.js | 24.14.0 |
+| Java | 21 |
+| MySQL | 8 |
+| Maven | 3.9.x |
 
-## Features
+## 技术栈
 
-- Role-based admin system for `BOSS`, `MANAGER`, and `STAFF`.
-- React admin dashboard with POS ordering, order ledger, table management, inventory warning, product management, and kitchen workflow.
-- WeChat Mini Program customer flow for table scanning, menu browsing, cart checkout, payment simulation, and order status tracking.
-- Spring Boot backend with token authentication, MyBatis-Plus persistence, MySQL schema initialization, and acceptance tests.
-- Order lifecycle support: unpaid, paid, cancelled, pending production, making, and production finished.
-- Dashboard statistics based on paid orders, including revenue, average order value, sales trend, payment methods, and hot products.
+### 后端技术栈
+- **编程语言**: Java 21
+- **框架**: Spring Boot 3.x
+- **ORM**: MyBatis-Plus
+- **数据库**: MySQL 8
+- **构建工具**: Maven
+- **开发工具**: Lombok, Validation
 
-## Tech Stack
+### 前端技术栈
+- **框架**: React
+- **语言**: TypeScript
+- **构建工具**: Vite
+- **UI组件库**: Ant Design
+- **网络请求**: Axios
+- **数据可视化**: ECharts
 
-| Layer | Stack |
-| --- | --- |
-| Backend | Java 21, Spring Boot 3, MyBatis-Plus, Maven |
-| Admin Web | React, TypeScript, Vite, Ant Design, ECharts |
-| Mini Program | uni-app, Vue 3, TypeScript, Vite, UnoCSS |
-| Database | MySQL 8 |
-
-## Project Structure
-
-```text
+## 项目结构
+```
 XUNYE/
-├── xunye-backend/   # Spring Boot backend service
-├── xunye-web/       # React admin web app
-├── xunye-miniapp/   # uni-app customer mini-program app
-├── doc/             # Project documents
-└── README.zh-CN.md  # Chinese README
+├── xunye-backend/                  # Spring Boot 后端服务
+│   └── src/main/resources/         # 配置文件、SQL初始化脚本、静态资源
+├── xunye-web/                      # React 管理端前端
+│   └── src/
+│       ├── api/                    # API 接口请求层，封装后端接口调用
+│       ├── components/             # 公共组件（侧边栏、顶栏、加载态等）
+│       ├── layouts/                # 页面布局组件
+│       ├── pages/                  # 页面组件（登录、看板、点单、订单等）
+│       ├── router/                 # 前端路由配置
+│       ├── styles/                 # 全局样式文件
+│       └── types/                  # TypeScript 类型定义
+└── xunye-miniapp/                  # 微信小程序顾客端
 ```
 
-## Local Development
+## 本地启动
 
-### 1. Initialize Database
+### 1. 数据库初始化
+1. 创建 MySQL 数据库（或直接执行脚本，脚本内含 `CREATE DATABASE`）
+2. 执行初始化脚本：`xunye-backend/src/main/resources/db/init.sql`
+   > 使用 Navicat 等工具时，请全选所有 SQL 后一并执行，避免只执行单条语句导致初始化不完整。
 
-Create the MySQL database and run:
-
-```text
-xunye-backend/src/main/resources/db/init.sql
-```
-
-Default local database credentials are configured in `application.yml`.
-
-### 2. Start Backend
-
+### 2. 后端启动
 ```bash
 cd xunye-backend
 mvn spring-boot:run
 ```
+后端服务地址：http://localhost:8848
 
-Backend URL:
-
-```text
-http://localhost:8848
-```
-
-### 3. Start Admin Web
-
+### 3. 前端启动
 ```bash
 cd xunye-web
-npm install
+npm install   # 首次启动需安装依赖
 npm run dev
 ```
+前端应用地址：http://localhost:8847
 
-Admin web URL:
+### 4. 小程序导入
+1. 打开微信开发者工具
+2. 导入项目，选择 `xunye-miniapp/` 目录
+3. 修改 `xunye-miniapp/utils/request.js` 中的 `baseUrl` 为后端地址（如 `http://localhost:8848`）
+4. 编译运行
 
-```text
-http://localhost:8847
+## 演示账号
+
+| 账号 | 密码 | 角色 | 权限说明 |
+|------|------|------|----------|
+| admin | 123456 | BOSS（店长） | 全部功能：Dashboard、员工管理、商品、库存、桌台、订单、系统设置 |
+| manager | 123456 | MANAGER（经理） | Dashboard、商品、库存、桌台、订单；**不可**管理员工账号 |
+| staff | 123456 | STAFF（员工） | 出品看板、订单列表/详情、点单POS、桌台查看；**不可**访问 Dashboard、商品、库存、员工管理 |
+
+> 密码均为 BCrypt 加密存储，直接使用明文 `123456` 登录即可。
+
+## 角色权限说明
+
+| 功能模块 | BOSS | MANAGER | STAFF |
+|----------|------|---------|-------|
+| Dashboard 营业看板 | ✅ | ✅ | ❌ |
+| 员工账号管理 | ✅ | ❌ | ❌ |
+| 商品/分类管理 | ✅ | ✅ | ❌ |
+| 库存管理 | ✅ | ✅ | ❌ |
+| 桌台/区域管理 | ✅ | ✅ | ✅（只读） |
+| 订单管理/收款 | ✅ | ✅ | ✅ |
+| 吧台点单 POS | ✅ | ✅ | ✅ |
+| 出品看板 | ✅ | ✅ | ✅ |
+| 系统设置 | ✅ | ❌ | ❌ |
+
+## 常见问题
+
+| 现象 | 原因 | 解决方式 |
+|------|------|----------|
+| 接口返回 401 | 未登录或 Token 已过期 | 重新登录 |
+| 接口返回 403 | 当前角色无权限访问该接口 | 使用有权限的账号登录 |
+| STAFF 登录后进入 /kitchen | STAFF 主要工作流是出品处理 | 正常行为，STAFF 默认首页为出品看板 |
+| 小程序请求失败 | baseUrl 配置错误或后端未启动 | 检查 `xunye-miniapp/utils/request.js` 中的 `baseUrl`，确认后端已启动 |
+| 小程序无法真机调试 | 域名未配置 | 开发阶段在微信开发者工具中勾选"不校验合法域名" |
+| 测试报 Unknown column 'serve_status' 或 BadSqlGrammar | 本地数据库是旧版，缺少新字段或表结构不完整 | **推荐**：重新执行完整 `init.sql` 重建数据库；或仅补字段则执行 `db/patch_v2.sql`（字段已存在会报错，跳过即可） |
+| mvn test 大量失败（BadSqlGrammar / 500） | 本地测试库未执行最新 init.sql，表结构与代码不匹配 | 重新执行 `xunye-backend/src/main/resources/db/init.sql` 完整初始化数据库后再跑测试 |
+
+## 接口说明
+所有接口统一返回 JSON 格式，结构如下：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {}
+}
 ```
 
-### 4. Run Mini Program
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| code | Integer | 业务状态码：`200` 成功，`401` 未登录/token过期，`403` 无权限，`500` 服务端异常 |
+| message | String | 状态描述信息，`success` 表示成功，失败时返回具体错误原因 |
+| data | Object | 响应数据，成功时返回对应的业务数据，失败时为 `null` |
 
-```bash
-cd xunye-miniapp
-pnpm install
-pnpm dev:mp
-```
+> 顾客端接口 `/api/customer/**` 无需后台 Token，直接公开访问。
 
-Open WeChat Developer Tools and import `xunye-miniapp/dist/dev/mp-weixin`.
+## 核心验收清单
 
-## Demo Accounts
+| # | 验收项 | 预期结果 |
+|---|--------|----------|
+| 1 | BOSS 账号登录 | 可访问 Dashboard、员工管理、商品、库存、桌台、订单所有页面 |
+| 2 | MANAGER 账号访问员工管理 | 前端跳转至 Dashboard，后端接口返回 403 |
+| 3 | STAFF 账号登录 | 默认进入 /kitchen，侧边栏不显示 Dashboard/商品/库存/员工 |
+| 4 | STAFF 手动输入 /dashboard | 自动重定向到 /kitchen |
+| 5 | 小程序扫码选桌台 | 可浏览商品、加购物车、提交订单 |
+| 6 | 后台收到新顾客订单 | 顶部出现"待处理顾客订单 N"橙色提醒，10秒内自动刷新 |
+| 7 | 出品看板查看已支付订单 | 按待制作、制作中、已完成三列展示，并每 10 秒自动刷新 |
+| 8 | 后台点击"开始制作" | 订单制作状态变为"制作中"，小程序订单详情同步显示"制作中" |
+| 9 | 后台点击"确认制作完成" | 订单制作状态变为"制作完成"，小程序显示"已完成"；该动作不自动清台 |
+| 10 | 桌台管理点击"清台" | 桌台没有待处理/制作中订单时恢复为空闲；仍有未完成订单时阻止清台 |
+| 11 | 吧台 POS 下单并收款 | 可选择微信/支付宝/现金，下单后立即支付成功并计入营收 |
+| 12 | 吧台 POS 仅下单 | 订单保持未支付，后续可在订单流水中收款 |
+| 13 | 未支付订单（paid_at 为空） | 不计入 Dashboard 今日营收、客单价、销售趋势、支付方式统计；**今日订单数仍按 created_at 统计，包含未支付订单** |
+| 14 | 已支付订单（status=PAID，paid_at 有值） | 正确计入 Dashboard 今日营收、订单数、支付方式统计、销售趋势 |
+| 15 | 顾客端接口不带后台 Token | `/api/customer/**` 正常返回数据，不受后台鉴权影响 |
 
-| Username | Password | Role |
-| --- | --- | --- |
-| `admin` | `123456` | BOSS |
-| `manager` | `123456` | MANAGER |
-| `staff` | `123456` | STAFF |
+## 功能模块
 
-## Verification
+### 1. 登录认证
+- 管理员登录功能
+- Token登录态管理
+- BCrypt密码加密保护
+- 登录过期自动处理机制
 
-```bash
-cd xunye-backend
-mvn test
-```
+### 2. 员工账号管理
+- 员工信息列表展示
+- 新增/编辑员工信息
+- 员工账号启用/禁用控制
+- 密码重置功能
+- 员工账号删除操作
 
-```bash
-cd xunye-web
-npm run build
-```
+### 3. 酒水商品管理
+- 商品分类管理
+- 商品完整CRUD操作
+- 商品上架/下架状态控制
+- 品牌历史记录功能
 
-Current verified status:
+### 4. 库存管理
+- 库存预警提示
+- 库存流水记录查询
+- 入库/出库/损耗/盘点调整操作
+- 库存不足自动校验
 
-- Backend tests pass.
-- Admin web production build passes.
-- Core customer order flow, POS payment flow, kitchen workflow, and dashboard accounting rules are covered.
+### 5. 桌台区域管理
+- 酒吧区域配置
+- 桌台信息管理
+- 实时桌台状态显示
 
-## Notes
+### 6. 吧台点单POS
+- 桌台选择功能
+- 商品快速选择
+- 购物车管理
+- 订单提交处理
+- 下单并收款（微信/支付宝/现金）
+- 仅下单稍后收款
+- 自动库存扣减
 
-- Customer APIs under `/api/customer/**` are public in the current MVP flow.
-- Payment uses a mock provider in development. Real WeChat Pay integration should be implemented through provider configuration, callback verification, and payment status query.
-- Dashboard revenue and related payment statistics only count paid orders with valid payment time.
+### 7. 订单流水管理
+- 订单列表查询（支持来源、制作状态筛选）
+- 订单详情查看
+- 收款处理
+- 订单取消功能
+- 取消订单后库存自动恢复
+- 开始制作 / 完成订单操作
+
+### 8. 营业看板
+- 今日营收统计（仅统计 paid_at 有值的已支付订单）
+- 今日订单数量统计
+- 客单价分析
+- 库存预警数量显示
+- 近7天销售趋势图表
+- 支付方式占比分析
+- 热销商品排行
+
+### 9. 顾客小程序
+- 扫码选桌台
+- 浏览商品/分类
+- 购物车下单
+- 订单详情实时同步（支付状态 + 制作状态）
+
+### 10. 系统设置
+- 品牌历史管理
+- 店铺配置（占位）
+- 订单配置（占位）
+- 小程序配置（占位）
