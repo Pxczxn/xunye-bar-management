@@ -1,6 +1,9 @@
 package com.xunye.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xunye.admin.common.BusinessException;
 import com.xunye.admin.dto.CustomerPhoneLoginDTO;
 import com.xunye.admin.dto.CustomerProfileUpdateDTO;
@@ -39,6 +42,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class CustomerServiceImpl implements CustomerService {
 
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
     private static final Map<String, RegisterCode> REGISTER_CODES = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<String, RegisterCode> LOGIN_CODES = new java.util.concurrent.ConcurrentHashMap<>();
     private static final long REGISTER_CODE_TTL_SECONDS = 300;
@@ -58,6 +62,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final MemberActivityMapper memberActivityMapper;
     private final SystemConfigMapper systemConfigMapper;
     private final SystemConfigService systemConfigService;
+    private final ObjectMapper objectMapper;
 
     @Value("${file.upload.base-path}")
     private String fileUploadBasePath;
@@ -822,6 +827,7 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     private ActivityVO toActivityVO(MemberActivity activity) {
+        Map<String, Object> settings = readActivitySettings(activity.getSettings());
         ActivityVO vo = new ActivityVO();
         vo.setId(activity.getId());
         vo.setTitle(activity.getTitle());
@@ -830,9 +836,23 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setStartDate(activity.getStartDate());
         vo.setEndDate(activity.getEndDate());
         vo.setCoverImage(activity.getCoverImage());
+        vo.setSettings(settings);
+        vo.setSettingSummary(ActivitySettingsHelper.summarize(activity.getType(), settings));
         vo.setStatus(activity.getStatus());
         vo.setSort(activity.getSort());
         return vo;
+    }
+
+    private Map<String, Object> readActivitySettings(String settingsJson) {
+        if (!StringUtils.hasText(settingsJson)) {
+            return Collections.emptyMap();
+        }
+        try {
+            return objectMapper.readValue(settingsJson, MAP_TYPE);
+        } catch (JsonProcessingException e) {
+            log.warn("failed to parse activity settings: {}", settingsJson, e);
+            return Collections.emptyMap();
+        }
     }
 
     private String getLevelName(String level) {

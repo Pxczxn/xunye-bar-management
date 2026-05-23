@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 public class ActivityVO {
@@ -23,6 +24,10 @@ public class ActivityVO {
     private LocalDateTime endDate;
 
     private String coverImage;
+
+    private Map<String, Object> settings;
+
+    private String settingSummary;
 
     private Integer status;
 

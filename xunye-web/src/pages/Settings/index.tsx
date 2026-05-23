@@ -256,6 +256,7 @@ export default function SettingsPage() {
 
   const handleDeleteBrand = (brand: ProductBrand) => {
     Modal.confirm({
+      rootClassName: 'xunye-confirm-modal',
       title: '确认删除',
       content: `确定要删除品牌「${brand.name}」吗？`,
       okText: '删除',
@@ -336,6 +337,7 @@ export default function SettingsPage() {
   const handleDeleteBannerImage = (imageUrl: string) => {
     if (!miniappConfig) return;
     Modal.confirm({
+      rootClassName: 'xunye-confirm-modal',
       title: '确认删除',
       content: '确定要删除该展示图片吗？',
       okText: '删除',

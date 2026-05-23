@@ -92,6 +92,7 @@ export default function CategoriesPage() {
 
   const handleDelete = (item: ProductCategory) => {
     Modal.confirm({
+      rootClassName: 'xunye-confirm-modal',
       title: '确认删除',
       content: `确定要删除分类「${item.name}」吗？`,
       okText: '删除',
@@ -222,7 +223,7 @@ export default function CategoriesPage() {
         okText={editingItem ? '保存' : '新增'}
         cancelText="取消"
         width={480}
-        destroyOnClose
+        destroyOnHidden
         styles={{
           content: { background: '#1A1A1F', border: '1px solid #2A2A31' },
           header: { background: '#1A1A1F', borderBottom: '1px solid #2A2A31', paddingBottom: 16 },

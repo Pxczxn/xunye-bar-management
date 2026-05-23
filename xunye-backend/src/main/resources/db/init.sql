@@ -365,6 +365,7 @@ CREATE TABLE member_activity (
     start_date  DATETIME      DEFAULT NULL COMMENT '开始时间',
     end_date    DATETIME      DEFAULT NULL COMMENT '结束时间',
     cover_image VARCHAR(500)  DEFAULT NULL COMMENT '封面图',
+    settings    JSON          DEFAULT NULL COMMENT '活动配置JSON',
     status      TINYINT       DEFAULT 0 COMMENT '状态: 0-草稿, 1-进行中, 2-已结束',
     sort        INT           DEFAULT 0 COMMENT '排序',
     deleted     TINYINT       DEFAULT 0 COMMENT '是否删除：0未删除，1已删除',
@@ -405,10 +406,10 @@ INSERT INTO member_level_config (level, name, min_amount, discount, points_rate,
 -- ----------------------------
 -- 初始化活动示例数据
 -- ----------------------------
-INSERT INTO member_activity (title, description, type, start_date, end_date, status, sort) VALUES
-('周二特惠日', '每周二所有鸡尾酒享8折优惠', 'DISCOUNT', '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 1),
-('新客专享', '首次消费满100减20', 'COUPON', '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 2),
-('积分翻倍', '周末消费积分双倍送', 'POINTS', '2026-01-01 00:00:00', '2026-06-30 23:59:59', 1, 3);
+INSERT INTO member_activity (title, description, type, start_date, end_date, settings, status, sort) VALUES
+('周二特惠日', '每周二所有鸡尾酒享8折优惠', 'DISCOUNT', '2026-01-01 00:00:00', '2026-12-31 23:59:59', JSON_OBJECT('discountRate', 8.0, 'minAmount', 0), 1, 1),
+('新客专享', '首次消费满100减20', 'COUPON', '2026-01-01 00:00:00', '2026-12-31 23:59:59', JSON_OBJECT('discountAmount', 20, 'minAmount', 100), 1, 2),
+('积分翻倍', '周末消费积分双倍送', 'POINTS', '2026-01-01 00:00:00', '2026-06-30 23:59:59', JSON_OBJECT('pointsMultiplier', 2), 1, 3);
 
 -- ----------------------------
 -- 初始化员工数据

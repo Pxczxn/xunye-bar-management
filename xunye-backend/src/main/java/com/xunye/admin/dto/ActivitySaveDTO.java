@@ -1,10 +1,10 @@
 package com.xunye.admin.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 public class ActivitySaveDTO {
@@ -22,6 +22,8 @@ public class ActivitySaveDTO {
     private LocalDateTime endDate;
 
     private String coverImage;
+
+    private Map<String, Object> settings;
 
     private Integer status;
 

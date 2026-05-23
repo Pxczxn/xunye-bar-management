@@ -1,25 +1,22 @@
 <script lang="ts" setup>
 import type { ActivityVO, MemberLevelVO } from '@/api/membership'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { getActiveActivities, getMemberLevels } from '@/api/membership'
 import { useShellState } from '@/composables/useShellState'
 import { useCustomerProfileStore } from '@/store/customerProfile'
 
 const { back } = useShellState()
 const customerProfileStore = useCustomerProfileStore()
-
-const currentMemberLevel = ref(customerProfileStore.profile.memberLevelName)
-const currentMemberLevelRaw = ref('REGULAR')
-const memberPoints = ref(customerProfileStore.profile.points)
-const memberBalance = ref(0)
+const currentMemberLevel = computed(() => customerProfileStore.profile.memberLevelName || '普通会员')
+const currentMemberLevelRaw = computed(() => customerProfileStore.profile.memberLevel || 'REGULAR')
+const memberPoints = computed(() => Number(customerProfileStore.profile.points || 0))
+const memberBalance = computed(() => Number(customerProfileStore.profile.balance || 0))
 
 const memberLevels = ref<MemberLevelVO[]>([])
 const activeActivities = ref<ActivityVO[]>([])
 
 onMounted(async () => {
   await customerProfileStore.fetchProfile().catch(() => {})
-  currentMemberLevel.value = customerProfileStore.profile.memberLevelName
-  memberPoints.value = customerProfileStore.profile.points
   const levels = await getMemberLevels().catch(() => [])
   const activities = await getActiveActivities().catch(() => [])
   memberLevels.value = levels
@@ -95,6 +92,7 @@ onMounted(async () => {
           </view>
           <view v-for="act in activeActivities" :key="act.id" class="activity-card">
             <text class="activity-title">{{ act.title }}</text>
+            <text v-if="act.settingSummary" class="activity-rule">{{ act.settingSummary }}</text>
             <text class="activity-desc">{{ act.description }}</text>
           </view>
         </view>
@@ -280,6 +278,12 @@ onMounted(async () => {
 .activity-title {
   font-size: 14px;
   font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+.activity-rule {
+  font-size: 12px;
+  color: var(--xunye-gold);
   display: block;
   margin-bottom: 4px;
 }

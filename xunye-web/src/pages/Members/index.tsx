@@ -306,7 +306,7 @@ export default function MembersPage() {
         okText="保存"
         cancelText="取消"
         width={400}
-        destroyOnClose
+        destroyOnHidden
         styles={modalStyles}
       >
         <div className="space-y-4 py-2">

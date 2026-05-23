@@ -223,6 +223,56 @@ body .ant-input-number-group-wrapper .ant-input-number-handler:hover .ant-input-
   color: #6F6A63 !important;
 }
 
+/* DatePicker / RangePicker */
+.xunye-picker.ant-picker,
+.xunye-picker.ant-picker-range {
+  background: #101014 !important;
+  background-color: #101014 !important;
+  border-color: #2A2A31 !important;
+  color: #F4EBDD !important;
+}
+.xunye-picker.ant-picker:hover,
+.xunye-picker.ant-picker-range:hover,
+.xunye-picker.ant-picker-focused,
+.xunye-picker.ant-picker-range.ant-picker-focused {
+  border-color: #D6A85A !important;
+  box-shadow: 0 0 0 2px rgba(214, 168, 90, 0.15) !important;
+}
+.xunye-picker .ant-picker-input > input,
+.xunye-picker .ant-picker-range-separator,
+.xunye-picker .ant-picker-suffix,
+.xunye-picker .ant-picker-active-bar {
+  color: #F4EBDD !important;
+}
+.xunye-picker .ant-picker-input > input::placeholder {
+  color: #6F6A63 !important;
+}
+.ant-picker-dropdown .ant-picker-panel-container,
+.ant-picker-dropdown .ant-picker-panel-layout,
+.ant-picker-dropdown .ant-picker-panel {
+  background: #1A1A1F !important;
+  background-color: #1A1A1F !important;
+  color: #F4EBDD !important;
+}
+.ant-picker-dropdown .ant-picker-cell,
+.ant-picker-dropdown .ant-picker-header,
+.ant-picker-dropdown .ant-picker-content th,
+.ant-picker-dropdown .ant-picker-header-view {
+  color: #F4EBDD !important;
+}
+.ant-picker-dropdown .ant-picker-cell-in-view {
+  color: #F4EBDD !important;
+}
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
+  background: #D6A85A !important;
+  color: #0B0B0F !important;
+}
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner::before {
+  border-color: #D6A85A !important;
+}
+
 /* Select - xunye-select 强制深色覆盖 */
 .xunye-select .ant-select-selector {
   background: #111114 !important;

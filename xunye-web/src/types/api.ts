@@ -352,6 +352,16 @@ export interface MemberLevelItem {
 }
 
 // ===== 活动管理 =====
+export interface ActivitySettings {
+  discountRate?: number;
+  minAmount?: number;
+  discountAmount?: number;
+  pointsMultiplier?: number;
+  specialPrice?: number;
+  originalPrice?: number;
+  stockLimit?: number;
+}
+
 export interface ActivityItem {
   id: number;
   title: string;
@@ -360,6 +370,8 @@ export interface ActivityItem {
   startDate: string | null;
   endDate: string | null;
   coverImage: string | null;
+  settings: ActivitySettings;
+  settingSummary: string;
   status: number;
   sort: number;
   createdAt: string;
@@ -388,6 +400,7 @@ export interface ActivityFormData {
   startDate: string | null;
   endDate: string | null;
   coverImage: string;
+  settings: ActivitySettings;
   status: number;
   sort: number;
 }

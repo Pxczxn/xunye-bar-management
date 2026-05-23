@@ -2,11 +2,10 @@ package com.xunye.admin.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -28,10 +27,13 @@ public class MemberActivity {
 
     private String coverImage;
 
+    private String settings;
+
     private Integer status;
 
     private Integer sort;
 
+    @TableLogic
     private Integer deleted;
 
     private LocalDateTime createdAt;

@@ -1,6 +1,9 @@
 package com.xunye.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xunye.admin.common.BusinessException;
 import com.xunye.admin.dto.ActivitySaveDTO;
 import com.xunye.admin.entity.MemberActivity;
@@ -12,14 +15,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class MemberActivityServiceImpl implements MemberActivityService {
 
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+
     private final MemberActivityMapper memberActivityMapper;
+    private final ObjectMapper objectMapper;
 
     @Override
     public PageResult<ActivityVO> getActivityPage(Integer pageNum, Integer pageSize, String keyword, String type, Integer status) {
@@ -63,6 +71,7 @@ public class MemberActivityServiceImpl implements MemberActivityService {
 
     @Override
     public void createActivity(ActivitySaveDTO dto) {
+        Map<String, Object> normalizedSettings = ActivitySettingsHelper.normalize(dto.getType(), dto.getSettings());
         MemberActivity activity = new MemberActivity();
         activity.setTitle(dto.getTitle());
         activity.setDescription(dto.getDescription());
@@ -70,6 +79,7 @@ public class MemberActivityServiceImpl implements MemberActivityService {
         activity.setStartDate(dto.getStartDate());
         activity.setEndDate(dto.getEndDate());
         activity.setCoverImage(dto.getCoverImage());
+        activity.setSettings(writeSettings(normalizedSettings));
         activity.setStatus(dto.getStatus() == null ? 0 : dto.getStatus());
         activity.setSort(dto.getSort() == null ? 0 : dto.getSort());
         memberActivityMapper.insert(activity);
@@ -81,12 +91,14 @@ public class MemberActivityServiceImpl implements MemberActivityService {
         if (activity == null || activity.getDeleted() == 1) {
             throw new BusinessException(404, "活动不存在");
         }
+        Map<String, Object> normalizedSettings = ActivitySettingsHelper.normalize(dto.getType(), dto.getSettings());
         activity.setTitle(dto.getTitle());
         activity.setDescription(dto.getDescription());
         activity.setType(dto.getType());
         activity.setStartDate(dto.getStartDate());
         activity.setEndDate(dto.getEndDate());
         activity.setCoverImage(dto.getCoverImage());
+        activity.setSettings(writeSettings(normalizedSettings));
         activity.setStatus(dto.getStatus() == null ? 0 : dto.getStatus());
         activity.setSort(dto.getSort() == null ? 0 : dto.getSort());
         memberActivityMapper.updateById(activity);
@@ -98,11 +110,11 @@ public class MemberActivityServiceImpl implements MemberActivityService {
         if (activity == null || activity.getDeleted() == 1) {
             throw new BusinessException(404, "活动不存在");
         }
-        activity.setDeleted(1);
-        memberActivityMapper.updateById(activity);
+        memberActivityMapper.deleteById(id);
     }
 
     private ActivityVO toActivityVO(MemberActivity activity) {
+        Map<String, Object> settings = readSettings(activity.getSettings());
         ActivityVO vo = new ActivityVO();
         vo.setId(activity.getId());
         vo.setTitle(activity.getTitle());
@@ -111,10 +123,31 @@ public class MemberActivityServiceImpl implements MemberActivityService {
         vo.setStartDate(activity.getStartDate());
         vo.setEndDate(activity.getEndDate());
         vo.setCoverImage(activity.getCoverImage());
+        vo.setSettings(settings);
+        vo.setSettingSummary(ActivitySettingsHelper.summarize(activity.getType(), settings));
         vo.setStatus(activity.getStatus());
         vo.setSort(activity.getSort());
         vo.setCreatedAt(activity.getCreatedAt());
         vo.setUpdatedAt(activity.getUpdatedAt());
         return vo;
+    }
+
+    private Map<String, Object> readSettings(String settingsJson) {
+        if (!StringUtils.hasText(settingsJson)) {
+            return Collections.emptyMap();
+        }
+        try {
+            return objectMapper.readValue(settingsJson, MAP_TYPE);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(500, "活动配置数据解析失败");
+        }
+    }
+
+    private String writeSettings(Map<String, Object> settings) {
+        try {
+            return objectMapper.writeValueAsString(settings);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(500, "活动配置数据保存失败");
+        }
     }
 }

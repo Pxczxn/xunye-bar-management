@@ -16,12 +16,14 @@ const emptyProfile = {
   avatar: defaultAvatar,
   birthday: '',
   gender: '',
+  memberLevel: 'REGULAR',
   memberLevelName: '游客',
   levelText: '登录后查看会员权益',
   favoriteTaste: '',
   favoriteTable: '',
   totalOrders: 0,
   points: 0,
+  balance: 0,
   lastVisitAt: '',
 }
 
@@ -90,12 +92,14 @@ export const useCustomerProfileStore = defineStore(
       profile.avatar = normalizeAvatar(data?.avatar)
       profile.birthday = cleanDate(data?.birthday)
       profile.gender = cleanString(data?.gender)
+      profile.memberLevel = cleanString(data?.memberLevel, 'REGULAR')
       profile.memberLevelName = cleanString(data?.memberLevelName, '普通会员')
       profile.levelText = profile.memberLevelName
       profile.favoriteTaste = cleanString(data?.favoriteTaste)
       profile.favoriteTable = cleanString(data?.favoriteTable)
       profile.totalOrders = cleanNumber(data?.totalOrders)
       profile.points = cleanNumber(data?.points)
+      profile.balance = cleanNumber(data?.balance)
       profile.lastVisitAt = data?.lastVisitAt ? String(data.lastVisitAt).slice(0, 10) : ''
 
       uni.setStorageSync(storagePhoneKey, profile.phone)

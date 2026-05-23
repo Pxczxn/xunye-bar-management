@@ -1,10 +1,16 @@
 import { ConfigProvider, theme } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
+import dayjs from 'dayjs';
+import zhCnDayjs from 'dayjs/esm/locale/zh-cn';
 import { RouterProvider } from 'react-router-dom';
 import router from './router';
+
+dayjs.locale(zhCnDayjs);
 
 export default function App() {
   return (
     <ConfigProvider
+      locale={zhCN}
       theme={{
         algorithm: theme.darkAlgorithm,
         token: {

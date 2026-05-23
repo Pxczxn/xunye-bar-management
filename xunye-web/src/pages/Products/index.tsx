@@ -243,6 +243,7 @@ export default function ProductsPage() {
     const nextStatus = item.status === 'ON_SALE' ? 'OFF_SALE' : 'ON_SALE';
     const label = nextStatus === 'ON_SALE' ? '上架' : '下架';
     Modal.confirm({
+      rootClassName: 'xunye-confirm-modal',
       title: `确认${label}`,
       content: `确定要${label}「${item.name}」吗？`,
       okText: '确认',
@@ -261,6 +262,7 @@ export default function ProductsPage() {
 
   const handleDelete = (item: ProductItem) => {
     Modal.confirm({
+      rootClassName: 'xunye-confirm-modal',
       title: '确认删除',
       content: `确定要删除「${item.name}」吗？此操作不可恢复。`,
       okText: '删除',

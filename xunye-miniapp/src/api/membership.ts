@@ -51,6 +51,16 @@ export interface MemberLevelVO {
   sort: number
 }
 
+export interface ActivitySettings {
+  discountRate?: number
+  minAmount?: number
+  discountAmount?: number
+  pointsMultiplier?: number
+  specialPrice?: number
+  originalPrice?: number
+  stockLimit?: number
+}
+
 export interface ActivityVO {
   id: number
   title: string
@@ -59,6 +69,8 @@ export interface ActivityVO {
   startDate: string | null
   endDate: string | null
   coverImage: string | null
+  settings: ActivitySettings
+  settingSummary: string
   status: number
   sort: number
 }
