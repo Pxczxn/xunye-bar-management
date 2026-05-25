@@ -25,6 +25,7 @@ import {
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react';
+import { darkSelectProps } from '@/constants/antdTheme';
 
 const ROLE_MAP: Record<string, string> = {
   BOSS: '老板',
@@ -56,34 +57,6 @@ export default function StaffPage() {
   const [resetTarget, setResetTarget] = useState<StaffItem | null>(null);
   const [resetting, setResetting] = useState(false);
   const [resetForm] = Form.useForm();
-
-  const darkSelectProps = {
-    className: 'xunye-select',
-    classNames: {
-      popup: {
-        root: 'xunye-select-dropdown',
-      },
-    },
-    styles: {
-      root: {
-        width: '100%',
-        backgroundColor: '#101014',
-        border: '1px solid #2A2A31',
-      },
-      content: {
-        color: '#F4EBDD',
-      },
-      suffix: {
-        color: '#AFA79B',
-      },
-      popup: {
-        root: {
-          backgroundColor: '#1A1A1F',
-          border: '1px solid #2A2A31',
-        },
-      },
-    },
-  } as const;
 
   const fetchData = useCallback(async (page = pageNum, size = pageSize) => {
     setLoading(true);

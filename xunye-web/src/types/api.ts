@@ -360,6 +360,12 @@ export interface ActivitySettings {
   specialPrice?: number;
   originalPrice?: number;
   stockLimit?: number;
+  scopeProductType?: 'ALL' | 'CATEGORY' | 'PRODUCT';
+  productIds?: number[];
+  categoryIds?: number[];
+  scopeTableType?: 'ALL' | 'AREA' | 'TABLE';
+  tableIds?: number[];
+  areaIds?: number[];
 }
 
 export interface ActivityItem {

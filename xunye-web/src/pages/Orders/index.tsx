@@ -5,28 +5,7 @@ import { Select, Modal, message } from 'antd';
 import { Search, RotateCcw, RefreshCw, Eye, CreditCard, XCircle, CheckCircle } from 'lucide-react';
 import { getOrderPage, getOrderDetail, payOrder, cancelOrder, finishOrder, startMaking } from '@/api/order';
 import type { OrderPageVO, OrderQueryParams } from '@/types/api';
-
-const darkSelectProps = {
-  className: 'xunye-select',
-  classNames: {
-    popup: { root: 'xunye-select-dropdown' },
-  },
-  styles: {
-    root: {
-      width: '100%',
-      backgroundColor: '#101014',
-      border: '1px solid #2A2A31',
-    },
-    content: { color: '#F4EBDD' },
-    suffix: { color: '#AFA79B' },
-    popup: {
-      root: {
-        backgroundColor: '#1A1A1F',
-        border: '1px solid #2A2A31',
-      },
-    },
-  },
-} as const;
+import { darkSelectProps } from '@/constants/antdTheme';
 
 const serveStatusText: Record<string, string> = {
   PENDING: '待处理',

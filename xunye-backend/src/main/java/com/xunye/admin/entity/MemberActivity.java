@@ -10,10 +10,7 @@ import java.time.LocalDateTime;
 
 @Data
 @TableName("member_activity")
-public class MemberActivity {
-
-    @TableId(type = IdType.AUTO)
-    private Long id;
+public class MemberActivity extends BaseEntity {
 
     private String title;
 
@@ -32,12 +29,5 @@ public class MemberActivity {
     private Integer status;
 
     private Integer sort;
-
-    @TableLogic
-    private Integer deleted;
-
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
 
 }

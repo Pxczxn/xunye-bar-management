@@ -10,17 +10,7 @@ import {
 } from '@/api/category';
 import type { ProductCategory, CategoryFormData } from '@/types/api';
 import { Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
-
-const darkSelectProps = {
-  className: 'xunye-select',
-  classNames: { popup: { root: 'xunye-select-dropdown' } },
-  styles: {
-    root: { backgroundColor: '#101014', border: '1px solid #2A2A31' },
-    content: { color: '#F4EBDD' },
-    suffix: { color: '#AFA79B' },
-    popup: { root: { backgroundColor: '#1A1A1F', border: '1px solid #2A2A31' } },
-  },
-} as const;
+import { darkSelectProps } from '@/constants/antdTheme';
 
 export default function CategoriesPage() {
   const [data, setData] = useState<ProductCategory[]>([]);

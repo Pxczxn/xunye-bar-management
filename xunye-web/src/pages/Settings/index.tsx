@@ -656,7 +656,7 @@ export default function SettingsPage() {
         {/* 首页轮播图 */}
         <ConfigSection
           title="首页轮播图"
-          desc="上传酒水小吃展示图片（建议尺寸 750×400px），将在顾客端首页轮播展示"
+          desc="上传酒水小吃展示图片（建议尺寸 750×400px），将在小程序首页轮播展示"
         >
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {miniappConfig.bannerImages.map((url) => (

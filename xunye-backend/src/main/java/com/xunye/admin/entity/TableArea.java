@@ -10,13 +10,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("table_area")
-public class TableArea {
-
-    /**
-     * 主键ID
-     */
-    @TableId(type = IdType.AUTO)
-    private Long id;
+public class TableArea extends BaseEntity {
 
     /**
      * 区域名称
@@ -32,23 +26,5 @@ public class TableArea {
      * 状态：1启用，0禁用
      */
     private Integer status;
-
-    /**
-     * 是否删除：0未删除，1已删除
-     */
-    @TableLogic
-    private Integer deleted;
-
-    /**
-     * 创建时间
-     */
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createdAt;
-
-    /**
-     * 更新时间
-     */
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedAt;
 
 }

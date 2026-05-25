@@ -10,13 +10,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("bar_table")
-public class BarTable {
-
-    /**
-     * 主键ID
-     */
-    @TableId(type = IdType.AUTO)
-    private Long id;
+public class BarTable extends BaseEntity {
 
     /**
      * 区域ID
@@ -37,23 +31,5 @@ public class BarTable {
      * 状态：EMPTY空闲、USING使用中、CLEANING清洁中、DISABLED停用
      */
     private String status;
-
-    /**
-     * 是否删除：0未删除，1已删除
-     */
-    @TableLogic
-    private Integer deleted;
-
-    /**
-     * 创建时间
-     */
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createdAt;
-
-    /**
-     * 更新时间
-     */
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedAt;
 
 }

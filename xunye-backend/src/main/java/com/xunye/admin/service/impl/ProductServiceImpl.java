@@ -12,6 +12,7 @@ import com.xunye.admin.mapper.ProductCategoryMapper;
 import com.xunye.admin.mapper.ProductMapper;
 import com.xunye.admin.service.ProductBrandService;
 import com.xunye.admin.service.ProductService;
+import com.xunye.admin.util.EntityUtils;
 import com.xunye.admin.vo.PageResult;
 import com.xunye.admin.vo.ProductPageVO;
 import com.xunye.admin.vo.ProductSimpleVO;
@@ -84,10 +85,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductPageVO getProductDetail(Long id) {
         // 查询商品
-        Product product = productMapper.selectById(id);
-        if (product == null) {
-            throw new BusinessException(404, "商品不存在");
-        }
+        Product product = EntityUtils.requireNonNull(productMapper.selectById(id), "商品");
 
         // 转换为 VO
         ProductPageVO vo = new ProductPageVO();
@@ -104,10 +102,8 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public void createProduct(ProductSaveDTO dto) {
-        ProductCategory category = categoryMapper.selectById(dto.getCategoryId());
-        if (category == null) {
-            throw new BusinessException(404, "分类不存在");
-        }
+        ProductCategory category = EntityUtils.requireNonNull(
+            categoryMapper.selectById(dto.getCategoryId()), "分类");
 
         Product product = new Product();
         BeanUtils.copyProperties(dto, product);
@@ -128,16 +124,11 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void updateProduct(Long id, ProductSaveDTO dto) {
         // 检查商品是否存在
-        Product product = productMapper.selectById(id);
-        if (product == null) {
-            throw new BusinessException(404, "商品不存在");
-        }
+        Product product = EntityUtils.requireNonNull(productMapper.selectById(id), "商品");
 
         // 检查分类是否存在
-        ProductCategory category = categoryMapper.selectById(dto.getCategoryId());
-        if (category == null) {
-            throw new BusinessException(404, "分类不存在");
-        }
+        ProductCategory category = EntityUtils.requireNonNull(
+            categoryMapper.selectById(dto.getCategoryId()), "分类");
 
         // 更新商品
         BeanUtils.copyProperties(dto, product);
@@ -150,10 +141,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void updateProductStatus(Long id, ProductStatusDTO dto) {
         // 检查商品是否存在
-        Product product = productMapper.selectById(id);
-        if (product == null) {
-            throw new BusinessException(404, "商品不存在");
-        }
+        Product product = EntityUtils.requireNonNull(productMapper.selectById(id), "商品");
 
         // 更新状态
         product.setStatus(dto.getStatus());
@@ -163,10 +151,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void deleteProduct(Long id) {
         // 检查商品是否存在
-        Product product = productMapper.selectById(id);
-        if (product == null) {
-            throw new BusinessException(404, "商品不存在");
-        }
+        Product product = EntityUtils.requireNonNull(productMapper.selectById(id), "商品");
 
         // 软删除（MyBatis-Plus 的 @TableLogic 会自动处理）
         productMapper.deleteById(id);

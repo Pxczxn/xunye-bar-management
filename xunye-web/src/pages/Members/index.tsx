@@ -5,6 +5,7 @@ import { Modal, Select, message } from 'antd';
 import { getCustomerMemberPage, getMemberLevels, updateMemberLevel } from '@/api/members';
 import type { CustomerMemberItem, MemberLevelItem } from '@/types/api';
 import { Search, RotateCcw, Crown } from 'lucide-react';
+import { darkSelectProps } from '@/constants/antdTheme';
 
 const LEVEL_OPTIONS = [
   { label: '全部等级', value: '' },
@@ -24,17 +25,6 @@ const LEVEL_BG: Record<string, string> = {
   VIP: 'bg-brand-gold/10',
   SVIP: 'bg-danger/10',
 };
-
-const darkSelectProps = {
-  className: 'xunye-select',
-  classNames: { popup: { root: 'xunye-select-dropdown' } },
-  styles: {
-    root: { backgroundColor: '#101014', border: '1px solid #2A2A31' },
-    content: { color: '#F4EBDD' },
-    suffix: { color: '#AFA79B' },
-    popup: { root: { backgroundColor: '#1A1A1F', border: '1px solid #2A2A31' } },
-  },
-} as const;
 
 const modalStyles = {
   content: { background: '#1A1A1F', border: '1px solid #2A2A31' },

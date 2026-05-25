@@ -11,13 +11,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("product")
-public class Product {
-
-    /**
-     * 主键ID
-     */
-    @TableId(type = IdType.AUTO)
-    private Long id;
+public class Product extends BaseEntity {
 
     /**
      * 分类ID
@@ -78,23 +72,5 @@ public class Product {
      * 状态：ON_SALE上架，OFF_SALE下架
      */
     private String status;
-
-    /**
-     * 是否删除：0未删除，1已删除
-     */
-    @TableLogic
-    private Integer deleted;
-
-    /**
-     * 创建时间
-     */
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createdAt;
-
-    /**
-     * 更新时间
-     */
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedAt;
 
 }

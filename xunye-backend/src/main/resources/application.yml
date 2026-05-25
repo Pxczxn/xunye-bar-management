@@ -44,6 +44,12 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
       file-size-threshold: 0
+  # Jackson 配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    serialization:
+      write-dates-as-timestamps: false
 
 # MyBatis-Plus 配置
 mybatis-plus:

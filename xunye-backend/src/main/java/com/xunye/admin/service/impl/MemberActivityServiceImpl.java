@@ -1,6 +1,7 @@
 package com.xunye.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,16 +49,14 @@ public class MemberActivityServiceImpl implements MemberActivityService {
         wrapper.orderByAsc(MemberActivity::getSort)
                .orderByDesc(MemberActivity::getCreatedAt);
 
-        Long total = memberActivityMapper.selectCount(wrapper);
+        Page<MemberActivity> page = new Page<>(current, size);
+        Page<MemberActivity> result = memberActivityMapper.selectPage(page, wrapper);
 
-        wrapper.last("LIMIT " + ((current - 1) * size) + "," + size);
-        List<MemberActivity> list = memberActivityMapper.selectList(wrapper);
-
-        List<ActivityVO> records = list.stream()
+        List<ActivityVO> records = result.getRecords().stream()
                 .map(this::toActivityVO)
                 .collect(Collectors.toList());
 
-        return new PageResult<>(records, total, current, size);
+        return new PageResult<>(records, result.getTotal(), current, size);
     }
 
     @Override

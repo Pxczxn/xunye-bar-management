@@ -14,13 +14,15 @@ final class ActivitySettingsHelper {
 
     static Map<String, Object> normalize(String type, Map<String, Object> rawSettings) {
         Map<String, Object> settings = rawSettings == null ? Map.of() : rawSettings;
-        return switch (type) {
+        Map<String, Object> normalized = switch (type) {
             case "DISCOUNT" -> normalizeDiscount(settings);
             case "COUPON" -> normalizeCoupon(settings);
             case "POINTS" -> normalizePoints(settings);
             case "SPECIAL" -> normalizeSpecial(settings);
             default -> throw new BusinessException(400, "不支持的活动类型");
         };
+        copyScopeSettings(settings, normalized);
+        return normalized;
     }
 
     static String summarize(String type, Map<String, Object> settings) {
@@ -181,5 +183,26 @@ final class ActivitySettingsHelper {
 
     private static String plain(BigDecimal value) {
         return scale(value).toPlainString();
+    }
+
+    private static void copyScopeSettings(Map<String, Object> source, Map<String, Object> target) {
+        if (source.containsKey("scopeProductType")) {
+            target.put("scopeProductType", source.get("scopeProductType"));
+        }
+        if (source.containsKey("productIds")) {
+            target.put("productIds", source.get("productIds"));
+        }
+        if (source.containsKey("categoryIds")) {
+            target.put("categoryIds", source.get("categoryIds"));
+        }
+        if (source.containsKey("scopeTableType")) {
+            target.put("scopeTableType", source.get("scopeTableType"));
+        }
+        if (source.containsKey("tableIds")) {
+            target.put("tableIds", source.get("tableIds"));
+        }
+        if (source.containsKey("areaIds")) {
+            target.put("areaIds", source.get("areaIds"));
+        }
     }
 }

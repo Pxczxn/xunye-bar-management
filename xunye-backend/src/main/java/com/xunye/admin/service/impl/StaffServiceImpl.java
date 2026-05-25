@@ -7,6 +7,7 @@ import com.xunye.admin.dto.*;
 import com.xunye.admin.entity.StaffUser;
 import com.xunye.admin.mapper.StaffUserMapper;
 import com.xunye.admin.service.StaffService;
+import com.xunye.admin.util.EntityUtils;
 import com.xunye.admin.vo.PageResult;
 import com.xunye.admin.vo.StaffPageVO;
 import lombok.RequiredArgsConstructor;
@@ -62,10 +63,7 @@ public class StaffServiceImpl implements StaffService {
 
     @Override
     public StaffPageVO getStaffDetail(Long id) {
-        StaffUser user = staffUserMapper.selectById(id);
-        if (user == null) {
-            throw new BusinessException(404, "员工不存在");
-        }
+        StaffUser user = EntityUtils.requireNonNull(staffUserMapper.selectById(id), "员工");
         return toPageVO(user);
     }
 
@@ -89,10 +87,7 @@ public class StaffServiceImpl implements StaffService {
 
     @Override
     public void updateStaff(Long id, StaffUpdateDTO dto) {
-        StaffUser user = staffUserMapper.selectById(id);
-        if (user == null) {
-            throw new BusinessException(404, "员工不存在");
-        }
+        StaffUser user = EntityUtils.requireNonNull(staffUserMapper.selectById(id), "员工");
 
         user.setNickname(dto.getNickname());
         user.setRole(dto.getRole());
@@ -102,10 +97,7 @@ public class StaffServiceImpl implements StaffService {
 
     @Override
     public void updateStaffStatus(Long id, StaffStatusDTO dto) {
-        StaffUser user = staffUserMapper.selectById(id);
-        if (user == null) {
-            throw new BusinessException(404, "员工不存在");
-        }
+        StaffUser user = EntityUtils.requireNonNull(staffUserMapper.selectById(id), "员工");
 
         user.setStatus(Integer.parseInt(dto.getStatus()));
         staffUserMapper.updateById(user);
@@ -113,10 +105,7 @@ public class StaffServiceImpl implements StaffService {
 
     @Override
     public void resetPassword(Long id, StaffPasswordDTO dto) {
-        StaffUser user = staffUserMapper.selectById(id);
-        if (user == null) {
-            throw new BusinessException(404, "员工不存在");
-        }
+        StaffUser user = EntityUtils.requireNonNull(staffUserMapper.selectById(id), "员工");
 
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         staffUserMapper.updateById(user);
@@ -124,10 +113,7 @@ public class StaffServiceImpl implements StaffService {
 
     @Override
     public void deleteStaff(Long id) {
-        StaffUser user = staffUserMapper.selectById(id);
-        if (user == null) {
-            throw new BusinessException(404, "员工不存在");
-        }
+        StaffUser user = EntityUtils.requireNonNull(staffUserMapper.selectById(id), "员工");
 
         staffUserMapper.deleteById(id);
     }

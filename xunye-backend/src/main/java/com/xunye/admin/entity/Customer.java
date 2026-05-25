@@ -11,10 +11,7 @@ import java.time.LocalDateTime;
 
 @Data
 @TableName("customer")
-public class Customer {
-
-    @TableId(type = IdType.AUTO)
-    private Long id;
+public class Customer extends BaseEntity {
 
     private String customerNo;
 
@@ -48,9 +45,5 @@ public class Customer {
     private BigDecimal totalAmount;
 
     private LocalDateTime lastVisitAt;
-
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
 
 }

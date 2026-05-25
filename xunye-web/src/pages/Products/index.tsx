@@ -26,6 +26,9 @@ import {
   ArrowUpFromLine,
   RotateCcw,
 } from 'lucide-react';
+import { darkSelectProps } from '@/constants/antdTheme';
+import { confirmDelete } from '@/utils/confirm';
+import Pagination from '@/components/Pagination';
 
 const { TextArea } = Input;
 
@@ -76,34 +79,6 @@ export default function ProductsPage() {
   const [editingItem, setEditingItem] = useState<ProductItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
-
-  const darkSelectProps = {
-    className: 'xunye-select',
-    classNames: {
-      popup: {
-        root: 'xunye-select-dropdown',
-      },
-    },
-    styles: {
-      root: {
-        width: '100%',
-        backgroundColor: '#101014',
-        border: '1px solid #2A2A31',
-      },
-      content: {
-        color: '#F4EBDD',
-      },
-      suffix: {
-        color: '#AFA79B',
-      },
-      popup: {
-        root: {
-          backgroundColor: '#1A1A1F',
-          border: '1px solid #2A2A31',
-        },
-      },
-    },
-  } as const;
 
   const fetchCategories = async () => {
     try {
@@ -261,23 +236,7 @@ export default function ProductsPage() {
   };
 
   const handleDelete = (item: ProductItem) => {
-    Modal.confirm({
-      rootClassName: 'xunye-confirm-modal',
-      title: '确认删除',
-      content: `确定要删除「${item.name}」吗？此操作不可恢复。`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          await deleteProduct(item.id);
-          message.success('删除成功');
-          fetchData();
-        } catch (err: any) {
-          message.error(err.message || '删除失败');
-        }
-      },
-    });
+    confirmDelete(item.name, () => deleteProduct(item.id), fetchData);
   };
 
   const handleCategoryChange = (categoryId: number) => {
@@ -508,66 +467,12 @@ export default function ProductsPage() {
 
         {/* 分页 */}
         {total > 0 && (
-          <div className="p-4 border-t border-border-dark flex flex-col sm:flex-row justify-between items-center gap-3">
-            <span className="text-xs text-text-weak">
-              第 {pageNum} / {totalPages} 页，共 {total} 条
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={pageNum <= 1}
-                onClick={() => handlePageChange(pageNum - 1, pageSize)}
-                className="px-3 py-1 text-xs border border-border-dark rounded text-text-sub hover:border-brand-gold/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                上一页
-              </button>
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let page: number;
-                if (totalPages <= 5) {
-                  page = i + 1;
-                } else if (pageNum <= 3) {
-                  page = i + 1;
-                } else if (pageNum >= totalPages - 2) {
-                  page = totalPages - 4 + i;
-                } else {
-                  page = pageNum - 2 + i;
-                }
-                return (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page, pageSize)}
-                    className={`w-8 h-8 text-xs rounded transition-colors ${
-                      page === pageNum
-                        ? 'bg-brand-gold text-page-bg font-bold'
-                        : 'border border-border-dark text-text-sub hover:border-brand-gold/50'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                );
-              })}
-              <button
-                disabled={pageNum >= totalPages}
-                onClick={() => handlePageChange(pageNum + 1, pageSize)}
-                className="px-3 py-1 text-xs border border-border-dark rounded text-text-sub hover:border-brand-gold/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                下一页
-              </button>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPageNum(1);
-                }}
-                className="ml-2 px-2 py-1 text-xs bg-sidebar-bg border border-border-dark rounded text-text-sub"
-              >
-                {[10, 20, 50].map((s) => (
-                  <option key={s} value={s}>
-                    {s} 条/页
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <Pagination
+            current={pageNum}
+            pageSize={pageSize}
+            total={total}
+            onChange={handlePageChange}
+          />
         )}
       </div>
 

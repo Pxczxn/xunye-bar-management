@@ -17,6 +17,7 @@ import {
   RotateCcw,
   RefreshCw,
 } from 'lucide-react';
+import { darkSelectProps } from '@/constants/antdTheme';
 
 const { TextArea } = Input;
 
@@ -208,34 +209,6 @@ export default function InventoryPage() {
   const quantityHint = selectedType === 'ADJUST'
     ? '调整后的实际库存总量，必须为非负整数'
     : '变动的数量值，必须为正整数';
-
-  const darkSelectProps = {
-    className: 'xunye-select',
-    classNames: {
-      popup: {
-        root: 'xunye-select-dropdown',
-      },
-    },
-    styles: {
-      root: {
-        width: '100%',
-        backgroundColor: '#101014',
-        border: '1px solid #2A2A31',
-      },
-      content: {
-        color: '#F4EBDD',
-      },
-      suffix: {
-        color: '#AFA79B',
-      },
-      popup: {
-        root: {
-          backgroundColor: '#1A1A1F',
-          border: '1px solid #2A2A31',
-        },
-      },
-    },
-  } as const;
 
   const totalPages = Math.ceil(recordsTotal / pageSize);
 

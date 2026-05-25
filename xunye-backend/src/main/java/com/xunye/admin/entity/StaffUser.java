@@ -11,13 +11,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("staff_user")
-public class StaffUser {
-
-    /**
-     * 主键ID
-     */
-    @TableId(type = IdType.AUTO)
-    private Long id;
+public class StaffUser extends BaseEntity {
 
     /**
      * 登录账号
@@ -49,23 +43,5 @@ public class StaffUser {
      * 最后登录时间
      */
     private LocalDateTime lastLoginAt;
-
-    /**
-     * 是否删除：0未删除，1已删除
-     */
-    @TableLogic
-    private Integer deleted;
-
-    /**
-     * 创建时间
-     */
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createdAt;
-
-    /**
-     * 更新时间
-     */
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedAt;
 
 }

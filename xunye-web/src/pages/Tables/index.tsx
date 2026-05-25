@@ -30,6 +30,7 @@ import {
   ToggleRight,
   Eraser,
 } from 'lucide-react';
+import { darkSelectProps } from '@/constants/antdTheme';
 
 const TABLE_STATUS_MAP: Record<string, { label: string; color: string }> = {
   EMPTY: { label: '空闲', color: 'text-success' },
@@ -57,28 +58,6 @@ const AREA_STATUS_OPTIONS = [
   { label: '启用', value: 1 },
   { label: '禁用', value: 0 },
 ];
-
-const darkSelectProps = {
-  className: 'xunye-select',
-  classNames: {
-    popup: { root: 'xunye-select-dropdown' },
-  },
-  styles: {
-    root: {
-      width: '100%',
-      backgroundColor: '#101014',
-      border: '1px solid #2A2A31',
-    },
-    content: { color: '#F4EBDD' },
-    suffix: { color: '#AFA79B' },
-    popup: {
-      root: {
-        backgroundColor: '#1A1A1F',
-        border: '1px solid #2A2A31',
-      },
-    },
-  },
-} as const;
 
 const modalStyles = {
   root: { background: 'transparent' },
