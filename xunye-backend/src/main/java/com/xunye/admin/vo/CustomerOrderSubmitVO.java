@@ -15,9 +15,13 @@ public class CustomerOrderSubmitVO {
 
     private BigDecimal discountAmount;
 
+    private BigDecimal memberDiscountAmount;
+
     private BigDecimal activityDiscountAmount;
 
     private BigDecimal couponDiscountAmount;
+
+    private String memberLevel;
 
     private String activityName;
 

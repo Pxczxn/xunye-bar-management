@@ -39,8 +39,10 @@ export interface OrderSnapshot {
   items: CartItem[]
   originalAmount: number
   discountAmount: number
+  memberDiscountAmount?: number
   activityDiscountAmount?: number
   couponDiscountAmount?: number
+  memberLevel?: string
   activityName?: string
   totalAmount: number
   coupon: CouponInfo | null

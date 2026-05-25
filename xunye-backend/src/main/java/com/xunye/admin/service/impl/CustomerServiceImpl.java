@@ -243,16 +243,21 @@ public class CustomerServiceImpl implements CustomerService {
             order.setCustomerId(customer.getId());
         }
 
-        // 计算活动折扣
-        ActivityDiscountResult activityResult = calculateActivityDiscountWithName(customer, table.getId(), productIds, totalAmount);
+        // 计算会员等级折扣
+        BigDecimal memberDiscountAmount = calculateMemberLevelDiscount(customer, totalAmount);
+        BigDecimal afterMemberDiscount = totalAmount.subtract(memberDiscountAmount);
+
+        // 计算活动折扣（基于会员折扣后的金额）
+        ActivityDiscountResult activityResult = calculateActivityDiscountWithName(customer, table.getId(), productIds, afterMemberDiscount);
         BigDecimal activityDiscountAmount = activityResult.discountAmount;
         String activityName = activityResult.activityName;
+        BigDecimal afterActivityDiscount = afterMemberDiscount.subtract(activityDiscountAmount);
 
-        // 计算优惠券折扣
-        BigDecimal couponDiscountAmount = resolveDiscount(dto.getPhone(), dto.getCouponId(), totalAmount);
+        // 计算优惠券折扣（基于活动折扣后的金额）
+        BigDecimal couponDiscountAmount = resolveDiscount(dto.getPhone(), dto.getCouponId(), afterActivityDiscount);
 
-        // 总折扣金额（活动折扣 + 优惠券折扣）
-        BigDecimal totalDiscountAmount = activityDiscountAmount.add(couponDiscountAmount);
+        // 总折扣金额（会员折扣 + 活动折扣 + 优惠券折扣）
+        BigDecimal totalDiscountAmount = memberDiscountAmount.add(activityDiscountAmount).add(couponDiscountAmount);
         BigDecimal payableAmount = totalAmount.subtract(totalDiscountAmount).max(BigDecimal.ZERO);
 
         order.setOriginalAmount(totalAmount);
@@ -279,8 +284,10 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setTotalAmount(order.getTotalAmount());
         vo.setOriginalAmount(order.getOriginalAmount());
         vo.setDiscountAmount(order.getDiscountAmount());
+        vo.setMemberDiscountAmount(memberDiscountAmount);
         vo.setActivityDiscountAmount(activityDiscountAmount);
         vo.setCouponDiscountAmount(couponDiscountAmount);
+        vo.setMemberLevel(customer != null ? customer.getMemberLevel() : null);
         vo.setActivityName(activityName);
         vo.setStatus(order.getStatus());
         return vo;
@@ -1148,6 +1155,38 @@ public class CustomerServiceImpl implements CustomerService {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String random = String.format("%04d", new Random().nextInt(10000));
         return "XYO" + timestamp + random;
+    }
+
+    /**
+     * 计算会员等级折扣金额
+     */
+    private BigDecimal calculateMemberLevelDiscount(Customer customer, BigDecimal totalAmount) {
+        if (customer == null || totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        String memberLevel = customer.getMemberLevel();
+        if (memberLevel == null || "REGULAR".equals(memberLevel)) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal discountRate;
+        if ("VIP".equals(memberLevel)) {
+            discountRate = new BigDecimal("95"); // 95折
+        } else if ("SVIP".equals(memberLevel)) {
+            discountRate = new BigDecimal("90"); // 90折
+        } else {
+            return BigDecimal.ZERO;
+        }
+
+        // 折扣金额 = 原价 * (1 - 折扣率/100)
+        BigDecimal discountMultiplier = BigDecimal.ONE.subtract(discountRate.divide(new BigDecimal("100"), 4, java.math.RoundingMode.HALF_UP));
+        BigDecimal discountAmount = totalAmount.multiply(discountMultiplier).setScale(2, java.math.RoundingMode.HALF_UP);
+
+        log.info("Applied member level discount: memberLevel={}, discountRate={}%, originalAmount={}, discountAmount={}",
+                memberLevel, discountRate, totalAmount, discountAmount);
+
+        return discountAmount;
     }
 
     /**

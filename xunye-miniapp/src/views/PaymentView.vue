@@ -195,6 +195,13 @@ async function retryConfirm() {
         <view class="info-line">
           <text>商品原价</text><text>¥{{ displayOrder.originalAmount.toFixed(2) }}</text>
         </view>
+        <view v-if="displayOrder.memberDiscountAmount && displayOrder.memberDiscountAmount > 0" class="info-line discount-line">
+          <text>
+            <text class="discount-icon">👑</text>
+            {{ displayOrder.memberLevel === 'VIP' ? 'VIP会员95折' : displayOrder.memberLevel === 'SVIP' ? 'SVIP会员9折' : '会员折扣' }}
+          </text>
+          <text class="gold">-¥{{ displayOrder.memberDiscountAmount.toFixed(2) }}</text>
+        </view>
         <view v-if="displayOrder.activityDiscountAmount && displayOrder.activityDiscountAmount > 0" class="info-line discount-line">
           <text>
             <text class="discount-icon">🎉</text>
@@ -209,7 +216,7 @@ async function retryConfirm() {
           </text>
           <text class="gold">-¥{{ displayOrder.couponDiscountAmount.toFixed(2) }}</text>
         </view>
-        <view v-if="displayOrder.discountAmount && displayOrder.discountAmount > 0 && !displayOrder.activityDiscountAmount && !displayOrder.couponDiscountAmount" class="info-line discount-line">
+        <view v-if="displayOrder.discountAmount && displayOrder.discountAmount > 0 && !displayOrder.memberDiscountAmount && !displayOrder.activityDiscountAmount && !displayOrder.couponDiscountAmount" class="info-line discount-line">
           <text>优惠金额</text><text class="gold">-¥{{ displayOrder.discountAmount.toFixed(2) }}</text>
         </view>
         <view class="info-line total-line">
