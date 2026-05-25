@@ -242,10 +242,19 @@ public class CustomerServiceImpl implements CustomerService {
         if (customer != null) {
             order.setCustomerId(customer.getId());
         }
-        BigDecimal discountAmount = resolveDiscount(dto.getPhone(), dto.getCouponId(), totalAmount);
-        BigDecimal payableAmount = totalAmount.subtract(discountAmount).max(BigDecimal.ZERO);
+
+        // 计算活动折扣
+        BigDecimal activityDiscountAmount = calculateActivityDiscount(customer, table.getId(), productIds, totalAmount);
+
+        // 计算优惠券折扣
+        BigDecimal couponDiscountAmount = resolveDiscount(dto.getPhone(), dto.getCouponId(), totalAmount);
+
+        // 总折扣金额（活动折扣 + 优惠券折扣）
+        BigDecimal totalDiscountAmount = activityDiscountAmount.add(couponDiscountAmount);
+        BigDecimal payableAmount = totalAmount.subtract(totalDiscountAmount).max(BigDecimal.ZERO);
+
         order.setOriginalAmount(totalAmount);
-        order.setDiscountAmount(discountAmount);
+        order.setDiscountAmount(totalDiscountAmount);
         order.setCouponId(dto.getCouponId());
         order.setTotalAmount(payableAmount);
         order.setStatus("UNPAID");
@@ -1134,6 +1143,158 @@ public class CustomerServiceImpl implements CustomerService {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String random = String.format("%04d", new Random().nextInt(10000));
         return "XYO" + timestamp + random;
+    }
+
+    /**
+     * 计算活动折扣金额
+     */
+    private BigDecimal calculateActivityDiscount(Customer customer, Long tableId, Set<Long> productIds, BigDecimal totalAmount) {
+        if (customer == null || totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        // 获取当前生效的活动
+        LocalDateTime now = LocalDateTime.now();
+        LambdaQueryWrapper<MemberActivity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MemberActivity::getDeleted, 0)
+               .eq(MemberActivity::getStatus, 1)
+               .le(MemberActivity::getStartDate, now)
+               .ge(MemberActivity::getEndDate, now)
+               .orderByAsc(MemberActivity::getSort);
+
+        List<MemberActivity> activities;
+        try {
+            activities = memberActivityMapper.selectList(wrapper);
+        } catch (Exception e) {
+            log.warn("Failed to query member activities", e);
+            return BigDecimal.ZERO;
+        }
+
+        if (activities == null || activities.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        // 查找适用的折扣活动
+        for (MemberActivity activity : activities) {
+            if (!"DISCOUNT".equals(activity.getType())) {
+                continue;
+            }
+
+            Map<String, Object> settings = readActivitySettings(activity.getSettings());
+            if (settings == null || settings.isEmpty()) {
+                continue;
+            }
+
+            // 检查活动适用范围
+            if (!isActivityApplicable(settings, tableId, productIds)) {
+                continue;
+            }
+
+            // 检查最低消费门槛
+            BigDecimal minAmount = optionalBigDecimal(settings.get("minAmount"));
+            if (minAmount != null && totalAmount.compareTo(minAmount) < 0) {
+                continue;
+            }
+
+            // 计算折扣
+            BigDecimal discountRate = optionalBigDecimal(settings.get("discountRate"));
+            if (discountRate != null && discountRate.compareTo(BigDecimal.ZERO) > 0) {
+                // discountRate 是折扣率（如 8.8 表示 8.8折）
+                // 折扣金额 = 原价 * (1 - 折扣率/10)
+                BigDecimal discountMultiplier = BigDecimal.ONE.subtract(discountRate.divide(BigDecimal.TEN, 4, java.math.RoundingMode.HALF_UP));
+                BigDecimal discountAmount = totalAmount.multiply(discountMultiplier).setScale(2, java.math.RoundingMode.HALF_UP);
+                log.info("Applied activity discount: activityId={}, discountRate={}, originalAmount={}, discountAmount={}",
+                        activity.getId(), discountRate, totalAmount, discountAmount);
+                return discountAmount;
+            }
+        }
+
+        return BigDecimal.ZERO;
+    }
+
+    /**
+     * 检查活动是否适用于当前订单
+     */
+    private boolean isActivityApplicable(Map<String, Object> settings, Long tableId, Set<Long> productIds) {
+        // 检查桌台范围
+        String scopeTableType = (String) settings.get("scopeTableType");
+        if ("SPECIFIC".equals(scopeTableType)) {
+            List<?> tableIds = (List<?>) settings.get("tableIds");
+            List<?> areaIds = (List<?>) settings.get("areaIds");
+
+            if (tableIds != null && !tableIds.isEmpty()) {
+                boolean tableMatch = tableIds.stream()
+                        .anyMatch(id -> Objects.equals(id.toString(), tableId.toString()));
+                if (!tableMatch) {
+                    return false;
+                }
+            }
+
+            if (areaIds != null && !areaIds.isEmpty()) {
+                BarTable table = barTableMapper.selectById(tableId);
+                if (table == null || table.getAreaId() == null) {
+                    return false;
+                }
+                boolean areaMatch = areaIds.stream()
+                        .anyMatch(id -> Objects.equals(id.toString(), table.getAreaId().toString()));
+                if (!areaMatch) {
+                    return false;
+                }
+            }
+        }
+
+        // 检查商品范围
+        String scopeProductType = (String) settings.get("scopeProductType");
+        if ("SPECIFIC".equals(scopeProductType)) {
+            List<?> activityProductIds = (List<?>) settings.get("productIds");
+            List<?> categoryIds = (List<?>) settings.get("categoryIds");
+
+            if (activityProductIds != null && !activityProductIds.isEmpty()) {
+                boolean productMatch = productIds.stream()
+                        .anyMatch(pid -> activityProductIds.stream()
+                                .anyMatch(apid -> Objects.equals(apid.toString(), pid.toString())));
+                if (!productMatch) {
+                    return false;
+                }
+            }
+
+            if (categoryIds != null && !categoryIds.isEmpty()) {
+                LambdaQueryWrapper<Product> pw = new LambdaQueryWrapper<>();
+                pw.in(Product::getId, productIds);
+                List<Product> products = productMapper.selectList(pw);
+                boolean categoryMatch = products.stream()
+                        .anyMatch(p -> categoryIds.stream()
+                                .anyMatch(cid -> Objects.equals(cid.toString(), p.getCategoryId().toString())));
+                if (!categoryMatch) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * 从 Object 转换为 BigDecimal
+     */
+    private BigDecimal optionalBigDecimal(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        }
+        if (value instanceof Number) {
+            return new BigDecimal(value.toString());
+        }
+        if (value instanceof String str && !str.isBlank()) {
+            try {
+                return new BigDecimal(str.trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
 }
