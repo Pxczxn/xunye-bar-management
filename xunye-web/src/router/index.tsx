@@ -16,6 +16,9 @@ const Settings = lazy(() => import('../pages/Settings'));
 const Staff = lazy(() => import('../pages/Staff'));
 const Members = lazy(() => import('../pages/Members'));
 const Activities = lazy(() => import('../pages/Activities'));
+const CouponTemplates = lazy(() => import('../pages/CouponTemplates'));
+const MemberLevelConfigs = lazy(() => import('../pages/MemberLevelConfigs'));
+const DiscountRules = lazy(() => import('../pages/DiscountRules'));
 
 function lazyPage(element: ReactNode) {
   return <Suspense fallback={<Loading />}>{element}</Suspense>;
@@ -69,6 +72,9 @@ const router = createBrowserRouter([
             { path: 'categories', element: lazyPage(<Categories />) },
             { path: 'members', element: lazyPage(<Members />) },
             { path: 'activities', element: lazyPage(<Activities />) },
+            { path: 'coupon-templates', element: lazyPage(<CouponTemplates />) },
+            { path: 'member-level-configs', element: lazyPage(<MemberLevelConfigs />) },
+            { path: 'discount-rules', element: lazyPage(<DiscountRules />) },
           ]},
           { element: <RoleRoute roles={['BOSS']} />, children: [
             { path: 'employees', element: lazyPage(<Staff />) },

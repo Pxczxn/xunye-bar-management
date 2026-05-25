@@ -12,6 +12,9 @@ import {
   Settings,
   Crown,
   Gift,
+  Ticket,
+  Award,
+  Percent,
 } from 'lucide-react';
 
 const MENU_ITEMS = [
@@ -24,6 +27,9 @@ const MENU_ITEMS = [
   { label: '库存预警', sub: 'Inventory', path: '/inventory', icon: Archive, roles: ['BOSS', 'MANAGER'] },
   { label: '会员管理', sub: 'Members', path: '/members', icon: Crown, roles: ['BOSS', 'MANAGER'] },
   { label: '活动管理', sub: 'Activities', path: '/activities', icon: Gift, roles: ['BOSS', 'MANAGER'] },
+  { label: '优惠券管理', sub: 'Coupons', path: '/coupon-templates', icon: Ticket, roles: ['BOSS', 'MANAGER'] },
+  { label: '会员等级', sub: 'Levels', path: '/member-level-configs', icon: Award, roles: ['BOSS', 'MANAGER'] },
+  { label: '折扣规则', sub: 'Discounts', path: '/discount-rules', icon: Percent, roles: ['BOSS', 'MANAGER'] },
   { label: '桌台区域', sub: 'Tables', path: '/tables', icon: LayoutGrid, roles: ['BOSS', 'MANAGER', 'STAFF'] },
   { label: '员工账号', sub: 'Staff', path: '/employees', icon: Users, roles: ['BOSS'] },
   { label: '系统设置', sub: 'Settings', path: '/settings', icon: Settings, roles: ['BOSS'] },
