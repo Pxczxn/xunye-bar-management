@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Select, InputNumber, Switch, message, Tag, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import api from '../../services/api';
+import request from '@/api/request';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -39,7 +39,7 @@ const DiscountRules: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/api/admin/discount-rules', {
+      const response = await request.get('/api/admin/discount-rules', {
         params: { pageNum, pageSize, keyword }
       });
       setDataSource(response.data.records);
@@ -59,7 +59,7 @@ const DiscountRules: React.FC = () => {
 
   const handleEdit = async (record: DiscountRule) => {
     try {
-      const response = await api.get(`/api/admin/discount-rules/${record.id}`);
+      const response = await request.get(`/api/admin/discount-rules/${record.id}`);
       form.setFieldsValue(response.data);
       setEditingId(record.id);
       setModalVisible(true);
@@ -70,7 +70,7 @@ const DiscountRules: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await api.delete(`/api/admin/discount-rules/${id}`);
+      await request.delete(`/api/admin/discount-rules/${id}`);
       message.success('删除成功');
       fetchData();
     } catch (error) {
@@ -80,7 +80,7 @@ const DiscountRules: React.FC = () => {
 
   const handleStatusChange = async (id: number, status: number) => {
     try {
-      await api.patch(`/api/admin/discount-rules/${id}/status`, null, {
+      await request.patch(`/api/admin/discount-rules/${id}/status`, null, {
         params: { status: status ? 1 : 0 }
       });
       message.success('状态更新成功');
@@ -99,10 +99,10 @@ const DiscountRules: React.FC = () => {
       };
 
       if (editingId) {
-        await api.put(`/api/admin/discount-rules/${editingId}`, submitData);
+        await request.put(`/api/admin/discount-rules/${editingId}`, submitData);
         message.success('更新成功');
       } else {
-        await api.post('/api/admin/discount-rules', submitData);
+        await request.post('/api/admin/discount-rules', submitData);
         message.success('创建成功');
       }
       setModalVisible(false);

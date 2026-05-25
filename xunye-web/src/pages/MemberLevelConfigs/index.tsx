@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, InputNumber, Switch, message, Tag, Popconfirm, ColorPicker } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, InputNumber, Switch, message, Tag, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import api from '../../services/api';
+import request from '@/api/request';
 
 const { TextArea } = Input;
 
@@ -36,7 +36,7 @@ const MemberLevelConfigs: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/api/admin/member-level-configs');
+      const response = await request.get('/api/admin/member-level-configs');
       setDataSource(response.data);
     } catch (error) {
       message.error('加载失败');
@@ -53,7 +53,7 @@ const MemberLevelConfigs: React.FC = () => {
 
   const handleEdit = async (record: MemberLevelConfig) => {
     try {
-      const response = await api.get(`/api/admin/member-level-configs/${record.id}`);
+      const response = await request.get(`/api/admin/member-level-configs/${record.id}`);
       form.setFieldsValue({
         ...response.data,
         benefitsDescription: response.data.benefits?.description || '',
@@ -67,7 +67,7 @@ const MemberLevelConfigs: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await api.delete(`/api/admin/member-level-configs/${id}`);
+      await request.delete(`/api/admin/member-level-configs/${id}`);
       message.success('删除成功');
       fetchData();
     } catch (error) {
@@ -77,7 +77,7 @@ const MemberLevelConfigs: React.FC = () => {
 
   const handleStatusChange = async (id: number, status: number) => {
     try {
-      await api.patch(`/api/admin/member-level-configs/${id}/status`, null, {
+      await request.patch(`/api/admin/member-level-configs/${id}/status`, null, {
         params: { status: status ? 1 : 0 }
       });
       message.success('状态更新成功');
@@ -99,10 +99,10 @@ const MemberLevelConfigs: React.FC = () => {
       delete submitData.benefitsDescription;
 
       if (editingId) {
-        await api.put(`/api/admin/member-level-configs/${editingId}`, submitData);
+        await request.put(`/api/admin/member-level-configs/${editingId}`, submitData);
         message.success('更新成功');
       } else {
-        await api.post('/api/admin/member-level-configs', submitData);
+        await request.post('/api/admin/member-level-configs', submitData);
         message.success('创建成功');
       }
       setModalVisible(false);
