@@ -4,9 +4,15 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Modal, Form, Input, Select, DatePicker, InputNumber, message } from 'antd';
 import datePickerZhCN from 'antd/es/date-picker/locale/zh_CN';
 import { getActivityPage, createActivity, updateActivity, deleteActivity } from '@/api/activities';
+import { getSimpleProducts, getCategoryList } from '@/api/product';
+import { getTableAreas, getTablePage } from '@/api/table';
 import type { ActivityItem, ActivityFormData, ActivitySettings } from '@/types/api';
-import { Plus, Edit, Trash2, Search, RotateCcw, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, RotateCcw, X, Calendar, Clock, Sparkles } from 'lucide-react';
 import dayjs, { type Dayjs } from 'dayjs';
+import MiniAppPreview from './components/MiniAppPreview';
+import ActivityTypeGrid from './components/ActivityTypeGrid';
+import LoopTimePicker from './components/LoopTimePicker';
+import { darkSelectProps } from '@/constants/antdTheme';
 
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
@@ -104,39 +110,51 @@ const TYPE_MAP: Record<string, string> = {
 };
 
 const DEFAULT_ACTIVITY_SETTINGS: Record<ActivityType, ActivitySettings> = {
-  DISCOUNT: { discountRate: 8.8, minAmount: 0 },
-  COUPON: { discountAmount: 20, minAmount: 100 },
-  POINTS: { pointsMultiplier: 2 },
-  SPECIAL: { specialPrice: 88, originalPrice: 108, stockLimit: 50 },
+  DISCOUNT: { discountRate: 8.8, minAmount: 0, scopeProductType: 'ALL', productIds: [], categoryIds: [], scopeTableType: 'ALL', tableIds: [], areaIds: [] },
+  COUPON: { discountAmount: 20, minAmount: 100, scopeProductType: 'ALL', productIds: [], categoryIds: [], scopeTableType: 'ALL', tableIds: [], areaIds: [] },
+  POINTS: { pointsMultiplier: 2, scopeProductType: 'ALL', productIds: [], categoryIds: [], scopeTableType: 'ALL', tableIds: [], areaIds: [] },
+  SPECIAL: { specialPrice: 88, originalPrice: 108, stockLimit: 50, scopeProductType: 'ALL', productIds: [], categoryIds: [], scopeTableType: 'ALL', tableIds: [], areaIds: [] },
 };
 
 const getDefaultSettings = (type: ActivityType): ActivitySettings => ({ ...DEFAULT_ACTIVITY_SETTINGS[type] });
 
 const normalizeSettingsByType = (type: string, settings?: ActivitySettings): ActivitySettings => {
   const mergedSettings = { ...getDefaultSettings((TYPE_MAP[type] ? type : 'DISCOUNT') as ActivityType), ...(settings || {}) };
+  const scopeSettings = {
+    scopeProductType: mergedSettings.scopeProductType ?? 'ALL',
+    productIds: mergedSettings.productIds ?? [],
+    categoryIds: mergedSettings.categoryIds ?? [],
+    scopeTableType: mergedSettings.scopeTableType ?? 'ALL',
+    tableIds: mergedSettings.tableIds ?? [],
+    areaIds: mergedSettings.areaIds ?? [],
+  };
   switch (type) {
     case 'DISCOUNT':
       return {
         discountRate: mergedSettings.discountRate,
         minAmount: mergedSettings.minAmount ?? 0,
+        ...scopeSettings,
       };
     case 'COUPON':
       return {
         discountAmount: mergedSettings.discountAmount,
         minAmount: mergedSettings.minAmount,
+        ...scopeSettings,
       };
     case 'POINTS':
       return {
         pointsMultiplier: mergedSettings.pointsMultiplier,
+        ...scopeSettings,
       };
     case 'SPECIAL':
       return {
         specialPrice: mergedSettings.specialPrice,
         originalPrice: mergedSettings.originalPrice,
         stockLimit: mergedSettings.stockLimit,
+        ...scopeSettings,
       };
     default:
-      return getDefaultSettings('DISCOUNT');
+      return { ...getDefaultSettings('DISCOUNT'), ...scopeSettings };
   }
 };
 
@@ -166,22 +184,88 @@ const formatSettingSummary = (type: string, settings?: ActivitySettings, fallbac
   }
 };
 
-const darkSelectProps = {
-  className: 'xunye-select',
-  classNames: { popup: { root: 'xunye-select-dropdown' } },
-  styles: {
-    root: { backgroundColor: '#101014', border: '1px solid #2A2A31' },
-    content: { color: '#F4EBDD' },
-    suffix: { color: '#AFA79B' },
-    popup: { root: { backgroundColor: '#1A1A1F', border: '1px solid #2A2A31' } },
-  },
-} as const;
+const formatScopeSummary = (
+  settings?: ActivitySettings,
+  products: any[] = [],
+  categories: any[] = [],
+  areas: any[] = [],
+  tables: any[] = []
+) => {
+  if (!settings) return { main: '全部商品 / 全部区域', sub: '所有商品和桌台区域参与' };
+
+  const {
+    scopeProductType = 'ALL',
+    productIds = [],
+    categoryIds = [],
+    scopeTableType = 'ALL',
+    tableIds = [],
+    areaIds = [],
+  } = settings;
+
+  let productText = '全部商品';
+  if (scopeProductType === 'CATEGORY') {
+    if (!categoryIds || categoryIds.length === 0) {
+      productText = '未指定分类';
+    } else {
+      const selectedNames = categories
+        .filter(c => categoryIds.includes(c.id))
+        .map(c => c.name);
+      productText = selectedNames.length > 0 ? selectedNames.join('、') : `已选 ${categoryIds.length} 个分类`;
+    }
+  } else if (scopeProductType === 'PRODUCT') {
+    if (!productIds || productIds.length === 0) {
+      productText = '未指定商品';
+    } else {
+      const selectedNames = products
+        .filter(p => productIds.includes(p.id))
+        .map(p => p.name);
+      productText = selectedNames.length > 0
+        ? selectedNames.slice(0, 3).join('、') + (selectedNames.length > 3 ? ` 等${selectedNames.length}件` : '')
+        : `已选 ${productIds.length} 个商品`;
+    }
+  }
+
+  let tableText = '全部区域';
+  if (scopeTableType === 'AREA') {
+    if (!areaIds || areaIds.length === 0) {
+      tableText = '未指定区域';
+    } else {
+      const selectedNames = areas
+        .filter(a => areaIds.includes(a.id))
+        .map(a => a.name);
+      tableText = selectedNames.length > 0 ? selectedNames.join('、') : `已选 ${areaIds.length} 个区域`;
+    }
+  } else if (scopeTableType === 'TABLE') {
+    if (!tableIds || tableIds.length === 0) {
+      tableText = '未指定桌台';
+    } else {
+      const selectedNames = tables
+        .filter(t => tableIds.includes(t.id))
+        .map(t => t.name);
+      tableText = selectedNames.length > 0
+        ? selectedNames.slice(0, 3).join('、') + (selectedNames.length > 3 ? ` 等${selectedNames.length}桌` : '')
+        : `已选 ${tableIds.length} 个桌台`;
+    }
+  }
+
+  return {
+    main: `${scopeProductType === 'ALL' ? '全部商品' : scopeProductType === 'CATEGORY' ? '指定分类' : '指定商品'} / ${scopeTableType === 'ALL' ? '全部区域' : scopeTableType === 'AREA' ? '指定区域' : '指定桌台'}`,
+    sub: `${productText}；${tableText}`
+  };
+};
 
 const confirmModalStyles = {
   content: { background: '#1A1A1F', border: '1px solid #2A2A31' },
   header: { background: '#1A1A1F', borderBottom: '1px solid #2A2A31', paddingBottom: 16 },
   body: { background: '#1A1A1F', paddingTop: 20 },
   footer: { background: '#1A1A1F', borderTop: '1px solid #2A2A31' },
+};
+
+const activityModalStyles = {
+  content: { background: '#1A1A1F', padding: 0 },
+  header: { background: '#1A1A1F', borderBottom: '1px solid #2A2A31', padding: '14px 20px' },
+  body: { background: '#1A1A1F', padding: '20px' },
+  footer: { background: '#1A1A1F', borderTop: '1px solid #2A2A31', padding: '14px 20px' },
 };
 
 interface LoopTimeInputProps {
@@ -226,7 +310,7 @@ function LoopTimeInput({ label, value, onChange, disabledOptions }: LoopTimeInpu
     <div className="rounded-xl border border-border-dark bg-card-bg p-3">
       <div className="mb-2.5 flex items-center justify-between">
         <div className="text-sm font-medium tracking-wide text-text-main">{label}</div>
-        <div className="text-xs font-medium text-brand-gold">
+        <div className="text-sm font-medium text-brand-gold">
           {value.map(formatTimeUnit).join(':')}
         </div>
       </div>
@@ -286,54 +370,76 @@ export default function ActivitiesPage() {
   const [filterStatus, setFilterStatus] = useState<number | undefined>();
   const [searchInput, setSearchInput] = useState('');
 
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [areas, setAreas] = useState<any[]>([]);
+  const [tables, setTables] = useState<any[]>([]);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ActivityItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [activityDateRange, setActivityDateRange] = useState<ActivityDateRangeValue>(getDefaultDateRange());
+  const [configPanel, setConfigPanel] = useState<'rules' | 'time' | 'scope' | null>(null);
   const [form] = Form.useForm();
   const selectedType = (Form.useWatch('type', form) || 'DISCOUNT') as ActivityType;
-  const minimumEndDateTime = useMemo(
-    () => getMinimumEndDateTime(activityDateRange[0]),
-    [activityDateRange],
+  const [activePreset, setActivePreset] = useState<'1h' | '24h' | '3d' | '7d' | null>(null);
+
+  const watchedTitle = Form.useWatch('title', form);
+  const watchedType = Form.useWatch('type', form) || 'DISCOUNT';
+  const watchedSettings = Form.useWatch('settings', form) || {};
+  const watchedDescription = Form.useWatch('description', form);
+  const watchedScopeProductType = Form.useWatch(['settings', 'scopeProductType'], form) || 'ALL';
+  const watchedScopeTableType = Form.useWatch(['settings', 'scopeTableType'], form) || 'ALL';
+  const ruleSummary = useMemo(
+    () => formatSettingSummary(watchedType, normalizeSettingsByType(watchedType, watchedSettings), '未设置规则'),
+    [watchedSettings, watchedType],
   );
-  const startTimeDisabledOptions = useMemo(() => {
-    const startDate = activityDateRange[0];
-    if (!startDate) return undefined;
 
+  const scopeSummary = useMemo(
+    () => formatScopeSummary(watchedSettings, products, categories, areas, tables),
+    [watchedSettings, products, categories, areas, tables],
+  );
+
+  const handleStartDateChange = (val: Dayjs | null) => {
+    if (!val) {
+      setActivityDateRange([null, activityDateRange[1]]);
+      return;
+    }
     const minStart = getMinimumStartDateTime();
-    if (!startDate.isSame(minStart, 'day')) return undefined;
+    const clampedStart = val.isBefore(minStart) ? minStart : val;
+    const currentEnd = activityDateRange[1];
+    const nextEnd = currentEnd && currentEnd.isBefore(clampedStart) ? clampedStart : currentEnd;
+    setActivityDateRange([clampedStart, nextEnd]);
+    setActivePreset(null);
+  };
 
-    const currentStartTime = getTimeParts(startDate);
-    const minStartTime = getTimeParts(minStart);
+  const handleEndDateChange = (val: Dayjs | null) => {
+    if (!val) {
+      setActivityDateRange([activityDateRange[0], null]);
+      return;
+    }
+    const startDate = activityDateRange[0] || getMinimumStartDateTime();
+    const clampedEnd = val.isBefore(startDate) ? startDate : val;
+    setActivityDateRange([startDate, clampedEnd]);
+    setActivePreset(null);
+  };
 
-    return {
-      hour: (option: number) => option < minStartTime[0],
-      minute: (option: number) => currentStartTime[0] === minStartTime[0] && option < minStartTime[1],
-      second: (option: number) => (
-        currentStartTime[0] === minStartTime[0]
-        && currentStartTime[1] === minStartTime[1]
-        && option < minStartTime[2]
-      ),
-    };
-  }, [activityDateRange]);
-  const endTimeDisabledOptions = useMemo(() => {
-    const endDate = activityDateRange[1];
-    if (!endDate || !minimumEndDateTime) return undefined;
-    if (!endDate.isSame(minimumEndDateTime, 'day')) return undefined;
+  const applyPreset = (preset: '1h' | '24h' | '3d' | '7d') => {
+    const start = activityDateRange[0] || getMinimumStartDateTime();
+    let end = start;
+    if (preset === '1h') {
+      end = start.add(1, 'hour');
+    } else if (preset === '24h') {
+      end = start.add(24, 'hour');
+    } else if (preset === '3d') {
+      end = start.add(3, 'day');
+    } else if (preset === '7d') {
+      end = start.add(7, 'day');
+    }
+    setActivityDateRange([start, end]);
+    setActivePreset(preset);
+  };
 
-    const currentEndTime = getTimeParts(endDate);
-    const minimumEndTime = getTimeParts(minimumEndDateTime);
-
-    return {
-      hour: (option: number) => option < minimumEndTime[0],
-      minute: (option: number) => currentEndTime[0] === minimumEndTime[0] && option < minimumEndTime[1],
-      second: (option: number) => (
-        currentEndTime[0] === minimumEndTime[0]
-        && currentEndTime[1] === minimumEndTime[1]
-        && option < minimumEndTime[2]
-      ),
-    };
-  }, [activityDateRange, minimumEndDateTime]);
   const activityTimePreview = useMemo(() => {
     const [startDateTime, endDateTime] = activityDateRange;
     if (!startDateTime || !endDateTime) {
@@ -341,6 +447,7 @@ export default function ActivitiesPage() {
     }
     return `${startDateTime.format('YYYY-MM-DD HH:mm:ss')} - ${endDateTime.format('YYYY-MM-DD HH:mm:ss')}`;
   }, [activityDateRange]);
+
   const activityDurationPreview = useMemo(() => {
     const [startDateTime, endDateTime] = activityDateRange;
     if (!startDateTime || !endDateTime) {
@@ -353,6 +460,14 @@ export default function ActivitiesPage() {
 
     return `${dayCount}天 ${hourCount}小时`;
   }, [activityDateRange]);
+  const activityTimeDisplay = useMemo(() => {
+    const [startDateTime, endDateTime] = activityDateRange;
+    if (!startDateTime || !endDateTime) {
+      return '暂未设置生效时间';
+    }
+    return `${startDateTime.format('M月D日 HH:mm')} 开始，${endDateTime.format('M月D日 HH:mm')} 结束`;
+  }, [activityDateRange]);
+
   const fetchData = useCallback(async (page = pageNum, size = pageSize) => {
     setLoading(true);
     try {
@@ -375,6 +490,26 @@ export default function ActivitiesPage() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    const fetchScopeData = async () => {
+      try {
+        const [prodRes, catRes, areaRes, tableRes] = await Promise.all([
+          getSimpleProducts(),
+          getCategoryList(),
+          getTableAreas(),
+          getTablePage({ pageNum: 1, pageSize: 1000 }),
+        ]);
+        setProducts(prodRes || []);
+        setCategories(catRes || []);
+        setAreas(areaRes || []);
+        setTables(tableRes?.records || []);
+      } catch (err) {
+        console.error('Failed to fetch activity scope support data:', err);
+      }
+    };
+    fetchScopeData();
+  }, []);
+
   const handleSearch = () => {
     setKeyword(searchInput);
     setPageNum(1);
@@ -393,7 +528,13 @@ export default function ActivitiesPage() {
   const openAddModal = () => {
     setEditingItem(null);
     form.resetFields();
-    setActivityDateRange(getDefaultDateRange());
+
+    // 默认预设为 24 小时
+    const minStart = getMinimumStartDateTime();
+    const defaultEnd = minStart.add(24, 'hour');
+    setActivityDateRange([minStart, defaultEnd]);
+    setActivePreset('24h');
+
     form.setFieldsValue({ type: 'DISCOUNT', sort: 0, settings: getDefaultSettings('DISCOUNT') });
     setModalOpen(true);
   };
@@ -404,67 +545,73 @@ export default function ActivitiesPage() {
       item.startDate ? dayjs(item.startDate) : null,
       item.endDate ? dayjs(item.endDate) : null,
     ]);
-    form.setFieldsValue({
-      title: item.title,
-      description: item.description,
-      type: item.type,
-      settings: normalizeSettingsByType(item.type, item.settings),
-      status: item.status,
-      sort: item.sort,
-    });
+    setActivePreset(null);
+    console.log('Opening edit modal for item:', item);
+
+    // 先重置表单
+    form.resetFields();
+
+    // 打开对话框
     setModalOpen(true);
+
+    // 使用 setTimeout 确保对话框已经渲染
+    setTimeout(() => {
+      form.setFieldsValue({
+        title: item.title,
+        description: item.description,
+        type: item.type,
+        settings: normalizeSettingsByType(item.type, item.settings),
+        status: item.status,
+        sort: item.sort,
+      });
+      console.log('Form values after setFieldsValue:', form.getFieldsValue());
+      console.log('Form getFieldValue(type):', form.getFieldValue('type'));
+    }, 100);
   };
 
   const handleTypeChange = (type: ActivityType) => {
-    form.setFieldValue('settings', getDefaultSettings(type));
+    console.log('Type changed to:', type);
+    const currentSettings = form.getFieldValue('settings') || {};
+    const scopeSettings = {
+      scopeProductType: currentSettings.scopeProductType ?? 'ALL',
+      productIds: currentSettings.productIds ?? [],
+      categoryIds: currentSettings.categoryIds ?? [],
+      scopeTableType: currentSettings.scopeTableType ?? 'ALL',
+      tableIds: currentSettings.tableIds ?? [],
+      areaIds: currentSettings.areaIds ?? [],
+    };
+    form.setFieldValue('type', type);
+    form.setFieldValue('settings', {
+      ...getDefaultSettings(type),
+      ...scopeSettings,
+    });
   };
 
   const closeEditorPanel = () => {
     setModalOpen(false);
   };
 
-  const handleDateRangeChange = (dates: ActivityDateRangeValue | null) => {
-    const nextDates = dates ?? [null, null];
-    setActivityDateRange((currentValue) => {
-      const nextStartDateTime = nextDates[0]
-        ? clampStartDateTime(mergeDateAndTime(nextDates[0], getTimeParts(currentValue[0])))
-        : null;
-      const nextEndDateTime = nextDates[1]
-        ? clampEndDateTime(mergeDateAndTime(nextDates[1], getTimeParts(currentValue[1])), nextStartDateTime)
-        : null;
-
-      return [nextStartDateTime, nextEndDateTime];
-    });
-  };
-
-  const handleTimeChange = (index: 0 | 1, nextTime: TimeParts) => {
-    setActivityDateRange((currentValue) => {
-      const nextValue = [...currentValue] as ActivityDateRangeValue;
-      if (index === 0) {
-        nextValue[0] = clampStartDateTime(mergeDateAndTime(currentValue[0], nextTime));
-        nextValue[1] = getMinimumEndDateTime(nextValue[0]);
-      } else {
-        nextValue[1] = clampEndDateTime(mergeDateAndTime(currentValue[1], nextTime), currentValue[0]);
-      }
-      return nextValue;
-    });
-  };
-
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      console.log('Form values:', values);
       setSubmitting(true);
+
+      // 如果 type 为 undefined，从 editingItem 中获取（编辑模式）或使用默认值（新建模式）
+      const activityType = values.type || (editingItem?.type) || 'DISCOUNT';
+
       const payload: ActivityFormData = {
         title: values.title,
         description: values.description || '',
-        type: values.type,
+        type: activityType,
         startDate: activityDateRange[0]?.format('YYYY-MM-DD HH:mm:ss') || null,
         endDate: activityDateRange[1]?.format('YYYY-MM-DD HH:mm:ss') || null,
         coverImage: '',
-        settings: normalizeSettingsByType(values.type, values.settings),
+        settings: normalizeSettingsByType(activityType, values.settings),
         status: editingItem ? (values.status ?? 0) : 0,
         sort: values.sort ?? 0,
       };
+      console.log('Payload:', payload);
       if (editingItem) {
         await updateActivity(editingItem.id, payload);
         message.success('修改成功');
@@ -506,7 +653,7 @@ export default function ActivitiesPage() {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-120px)] space-y-6 pb-8">
+    <div className="relative min-h-[calc(100vh-120px)] space-y-4 pb-8">
       {/* 标题栏 */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-6">
         <div>
@@ -522,9 +669,7 @@ export default function ActivitiesPage() {
         </button>
       </div>
 
-      {!modalOpen && (
-        <>
-          {/* 搜索栏 */}
+      {/* 搜索栏 */}
           <div className="bg-card-bg border border-border-dark rounded-xl p-4">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px]">
@@ -712,253 +857,753 @@ export default function ActivitiesPage() {
             </div>
           </div>
         )}
-          </div>
-        </>
-      )}
+      </div>
 
-      {/* 页面内编辑面板 */}
-      {modalOpen && (
-        <div className="rounded-2xl border border-border-dark bg-card-bg shadow-xl">
-          <div className="mx-auto flex max-w-[1100px] flex-col rounded-2xl">
-            <div className="flex items-center justify-between border-b border-border-dark px-5 py-3.5">
-              <div>
-                <div className="text-lg font-serif tracking-wider text-brand-gold">
-                  {editingItem ? '编辑活动' : '新增活动'}
-                </div>
-                <div className="mt-1 text-xs text-text-weak">按基础信息、规则设置、生效时间依次配置</div>
+      <Modal
+        open={modalOpen}
+        onCancel={closeEditorPanel}
+        footer={null}
+        width={1500}
+        rootClassName="xunye-activity-modal"
+        styles={activityModalStyles}
+        closeIcon={<X size={22} />}
+      >
+        <div className="flex flex-col">
+          {/* 弹窗标题区 */}
+          <div className="relative mb-3 border-b border-brand-gold/20 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-gold/10 border border-brand-gold/30 shadow-lg shadow-brand-gold/10">
+                <Plus size={20} className="text-brand-gold" />
               </div>
-              <button
-                type="button"
-                onClick={closeEditorPanel}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-dark text-text-sub transition-colors hover:border-brand-gold hover:text-brand-gold"
-              >
-                <X size={16} />
-              </button>
+              <div>
+                <h2 className="text-xl font-serif font-bold text-brand-gold tracking-wide">
+                  {editingItem ? '编辑活动' : '新建活动'}
+                </h2>
+                <p className="mt-0.5 text-xs text-text-weak tracking-wide">
+                  配置活动基本信息、优惠规则与生效时段
+                </p>
+              </div>
             </div>
-            <div className="p-5">
-              <Form
-                form={form}
-                layout="vertical"
-                initialValues={{ type: 'DISCOUNT', sort: 0 }}
-                className="space-y-3"
-              >
-                <div className="rounded-2xl border border-border-dark bg-page-bg/40 p-4">
-                  <div className="mb-4 border-b border-border-dark pb-2.5">
-                    <div className="text-sm font-medium text-brand-gold tracking-wider">基础信息</div>
-                    <div className="mt-1 text-xs text-text-weak">填写活动名称、排序和展示说明</div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.25fr_0.75fr]">
-                    <Form.Item
-                      name="title"
-                      label={<span className="text-text-sub text-xs uppercase tracking-wider">活动标题</span>}
-                      rules={[{ required: true, message: '请输入活动标题' }]}
-                      className="mb-0"
-                    >
-                      <Input placeholder="如：周二特惠日" />
-                    </Form.Item>
-                    <Form.Item
-                      name="sort"
-                      label={<span className="text-text-sub text-xs uppercase tracking-wider">排序</span>}
-                      tooltip="数值越小越靠前"
-                      className="mb-0"
-                    >
-                      <InputNumber min={0} className="!w-full" placeholder="0" />
-                    </Form.Item>
-                  </div>
-                  <Form.Item
-                    name="description"
-                    label={<span className="text-text-sub text-xs uppercase tracking-wider">活动描述</span>}
-                    className="mt-3 mb-0"
-                  >
-                    <TextArea rows={3} placeholder="填写活动说明或前台展示文案" />
-                  </Form.Item>
+          </div>
+
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{ type: 'DISCOUNT', sort: 0 }}
+            className="min-h-0"
+            onValuesChange={(changedValues) => {
+              if (changedValues.type) {
+                handleTypeChange(changedValues.type);
+              }
+            }}
+          >
+            {/* Split Dual-Column Layout */}
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-12">
+
+              {/* Left Column - Form configurations (60% width) */}
+              <div className="space-y-3 md:col-span-7">
+
+                {/* 基础信息卡片 */}
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <button type="button" onClick={() => setConfigPanel('rules')} className="rounded-xl border border-border-dark bg-[#111114] p-4 text-left transition-colors hover:border-brand-gold/50">
+                    <div className="text-[10px] uppercase tracking-widest text-brand-gold">规则设置</div>
+                    <div className="mt-2 text-sm font-semibold text-text-main">{TYPE_MAP[watchedType]}</div>
+                    <div className="mt-1 truncate text-[11px] text-text-weak">{ruleSummary}</div>
+                  </button>
+                  <button type="button" onClick={() => setConfigPanel('time')} className="rounded-xl border border-border-dark bg-[#111114] p-4 text-left transition-colors hover:border-brand-gold/50">
+                    <div className="text-[10px] uppercase tracking-widest text-brand-gold">生效时间</div>
+                    <div className="mt-2 text-sm font-semibold text-text-main">{activityDurationPreview}</div>
+                    <div className="mt-1 truncate text-[11px] text-text-weak">{activityTimeDisplay}</div>
+                  </button>
+                  <button type="button" onClick={() => setConfigPanel('scope')} className="rounded-xl border border-border-dark bg-[#111114] p-4 text-left transition-colors hover:border-brand-gold/50">
+                    <div className="text-[10px] uppercase tracking-widest text-brand-gold">活动范围</div>
+                    <div className="mt-2 text-sm font-semibold text-text-main">{scopeSummary.main}</div>
+                    <div className="mt-1 truncate text-[11px] text-text-weak" title={scopeSummary.sub}>{scopeSummary.sub}</div>
+                  </button>
                 </div>
 
-                <div className="rounded-2xl border border-border-dark bg-page-bg/40 p-4">
-                  <div className="mb-4 border-b border-border-dark pb-2.5">
-                    <div className="text-sm font-medium text-brand-gold tracking-wider">规则设置</div>
-                    <div className="mt-1 text-xs text-text-weak">选择活动类型并填写对应规则参数</div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                    <Form.Item
-                      name="type"
-                      label={<span className="text-text-sub text-xs uppercase tracking-wider">活动类型</span>}
-                      rules={[{ required: true, message: '请选择活动类型' }]}
-                      className="mb-0"
-                    >
-                      <Select options={TYPE_OPTIONS} onChange={handleTypeChange} {...darkSelectProps} />
-                    </Form.Item>
-                    {editingItem ? (
-                      <Form.Item
-                        name="status"
-                        label={<span className="text-text-sub text-xs uppercase tracking-wider">状态</span>}
-                        className="mb-0"
-                      >
-                        <Select options={STATUS_OPTIONS} {...darkSelectProps} />
-                      </Form.Item>
-                    ) : (
-                      <div className="rounded-xl border border-border-dark bg-card-bg px-3.5 py-3">
-                        <div className="text-[11px] uppercase tracking-wider text-text-weak">状态说明</div>
-                        <div className="mt-1.5 text-sm text-text-sub">新建活动默认保存为草稿</div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-3">
-                    {selectedType === 'DISCOUNT' && (
-                      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                        <Form.Item
-                          name={['settings', 'discountRate']}
-                          label={<span className="text-text-sub text-xs uppercase tracking-wider">折扣力度</span>}
-                          tooltip="例如 8.5 代表打 8.5 折"
-                          rules={[{ required: true, message: '请输入折扣力度' }]}
-                          className="mb-0"
-                        >
-                          <InputNumber min={0.1} max={9.9} step={0.1} precision={1} className="!w-full" placeholder="8.5" addonAfter="折" />
-                        </Form.Item>
-                        <Form.Item
-                          name={['settings', 'minAmount']}
-                          label={<span className="text-text-sub text-xs uppercase tracking-wider">门槛金额</span>}
-                          tooltip="0 代表无门槛"
-                          className="mb-0"
-                        >
-                          <InputNumber min={0} step={1} precision={2} className="!w-full" placeholder="0" addonAfter="元" />
-                        </Form.Item>
-                      </div>
-                    )}
-                    {selectedType === 'COUPON' && (
-                      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                        <Form.Item
-                          name={['settings', 'discountAmount']}
-                          label={<span className="text-text-sub text-xs uppercase tracking-wider">优惠金额</span>}
-                          rules={[{ required: true, message: '请输入优惠金额' }]}
-                          className="mb-0"
-                        >
-                          <InputNumber min={0.01} step={1} precision={2} className="!w-full" placeholder="20" addonAfter="元" />
-                        </Form.Item>
-                        <Form.Item
-                          name={['settings', 'minAmount']}
-                          label={<span className="text-text-sub text-xs uppercase tracking-wider">使用门槛</span>}
-                          rules={[{ required: true, message: '请输入使用门槛' }]}
-                          className="mb-0"
-                        >
-                          <InputNumber min={0.01} step={1} precision={2} className="!w-full" placeholder="100" addonAfter="元" />
-                        </Form.Item>
-                      </div>
-                    )}
-                    {selectedType === 'POINTS' && (
-                      <Form.Item
-                        name={['settings', 'pointsMultiplier']}
-                        label={<span className="text-text-sub text-xs uppercase tracking-wider">积分倍率</span>}
-                        tooltip="例如 2 代表双倍积分"
-                        rules={[{ required: true, message: '请输入积分倍率' }]}
-                        className="mb-0"
-                      >
-                        <InputNumber min={1} max={10} step={0.5} precision={1} className="!w-full" placeholder="2" addonAfter="倍" />
-                      </Form.Item>
-                    )}
-                    {selectedType === 'SPECIAL' && (
-                      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                        <Form.Item
-                          name={['settings', 'specialPrice']}
-                          label={<span className="text-text-sub text-xs uppercase tracking-wider">特惠价</span>}
-                          rules={[{ required: true, message: '请输入特惠价' }]}
-                          className="mb-0"
-                        >
-                          <InputNumber min={0.01} step={1} precision={2} className="!w-full" placeholder="88" addonAfter="元" />
-                        </Form.Item>
-                        <Form.Item
-                          name={['settings', 'originalPrice']}
-                          label={<span className="text-text-sub text-xs uppercase tracking-wider">原价</span>}
-                          className="mb-0"
-                        >
-                          <InputNumber min={0.01} step={1} precision={2} className="!w-full" placeholder="108" addonAfter="元" />
-                        </Form.Item>
-                        <Form.Item
-                          name={['settings', 'stockLimit']}
-                          label={<span className="text-text-sub text-xs uppercase tracking-wider">限量份数</span>}
-                          className="mb-0"
-                        >
-                          <InputNumber min={1} step={1} precision={0} className="!w-full" placeholder="50" addonAfter="份" />
-                        </Form.Item>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border-dark bg-page-bg/40 p-4">
-                  <div className="mb-4 flex flex-col gap-2 border-b border-border-dark pb-2.5 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-brand-gold tracking-wider">生效时间</div>
-                      <div className="mt-1 text-xs text-text-weak">直接设置生效日期和开始、结束时间</div>
+                <div className="group relative overflow-hidden rounded-xl border border-border-dark bg-gradient-to-br from-card-bg to-page-bg/60 p-3 transition-all duration-300 hover:border-brand-gold/30 hover:shadow-lg hover:shadow-brand-gold/5">
+                  <div className="absolute right-0 top-0 h-32 w-32 bg-brand-gold/5 blur-3xl"></div>
+                  <div className="relative">
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-brand-gold"></div>
+                      <h3 className="text-base font-semibold uppercase tracking-widest text-brand-gold">基础信息</h3>
+                      <div className="h-px flex-1 bg-gradient-to-r from-brand-gold/30 to-transparent"></div>
                     </div>
-                  </div>
-                  <div className="mb-3 rounded-xl border border-border-dark bg-card-bg p-3">
-                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_0.6fr]">
-                      <div className="min-w-0">
-                        <div className="text-[11px] uppercase tracking-wider text-text-weak">生效区间</div>
-                        <div className="mt-1 text-sm text-text-main break-all">{activityTimePreview}</div>
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="md:col-span-2">
+                        <Form.Item
+                          name="title"
+                          label={<span className="text-sm font-medium text-text-sub">活动标题</span>}
+                          rules={[{ required: true, message: '请输入活动标题' }]}
+                          className="mb-0"
+                        >
+                          <Input
+                            placeholder="例如：尊享会员特惠夜"
+                            className="h-10 rounded-lg text-sm"
+                          />
+                        </Form.Item>
                       </div>
                       <div>
-                        <div className="text-[11px] uppercase tracking-wider text-text-weak">活动时长</div>
-                        <div className="mt-1 text-sm text-brand-gold">{activityDurationPreview}</div>
+                        <Form.Item
+                          name="sort"
+                          label={<span className="text-sm font-medium text-text-sub">显示排序</span>}
+                          tooltip="数值越小越靠前"
+                          className="mb-0"
+                        >
+                          <InputNumber
+                            min={0}
+                            className="!w-full h-10 rounded-lg text-sm"
+                            placeholder="0"
+                          />
+                        </Form.Item>
+                      </div>
+                    </div>
+
+                    <Form.Item
+                      name="description"
+                      label={<span className="text-sm font-medium text-text-sub">活动描述</span>}
+                      className="mt-3 mb-0"
+                    >
+                      <TextArea
+                        rows={1}
+                        placeholder="填写活动的详细规则或前台展示描述（例如：本活动仅限到店消费，卡座与包厢除外，不与其它优惠同享）"
+                        className="rounded-lg"
+                      />
+                    </Form.Item>
+                  </div>
+                </div>
+
+                {/* 规则设置卡片 */}
+                {false && <div className="group relative overflow-hidden rounded-xl border border-border-dark bg-gradient-to-br from-card-bg to-page-bg/60 p-3 transition-all duration-300 hover:border-brand-gold/30 hover:shadow-lg hover:shadow-brand-gold/5">
+                  <div className="absolute left-0 top-0 h-32 w-32 bg-brand-gold/5 blur-3xl"></div>
+                  <div className="relative">
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-brand-gold"></div>
+                      <h3 className="text-base font-semibold uppercase tracking-widest text-brand-gold">规则设置</h3>
+                      <div className="h-px flex-1 bg-gradient-to-r from-brand-gold/30 to-transparent"></div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Form.Item
+                        name="type"
+                        label={<span className="text-sm font-medium text-text-sub">活动类型</span>}
+                        rules={[{ required: true, message: '请选择活动类型' }]}
+                        className="mb-0"
+                      >
+                        <ActivityTypeGrid />
+                      </Form.Item>
+
+                      {/* 动态规则参数区域 */}
+                      <div className="rounded-xl border border-border-dark/50 bg-[#111114] p-2.5 transition-all">
+                        {selectedType === 'DISCOUNT' && (
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <Form.Item
+                              name={['settings', 'discountRate']}
+                              label={<span className="text-sm font-medium text-text-sub">折扣力度</span>}
+                              tooltip="例如 8.5 代表打 8.5 折"
+                              rules={[{ required: true, message: '请输入折扣力度' }]}
+                              className="mb-0"
+                            >
+                              <InputNumber
+                                min={0.1}
+                                max={9.9}
+                                step={0.1}
+                                precision={1}
+                                className="!w-full h-10 rounded-lg text-sm"
+                                placeholder="8.8"
+                                addonAfter="折"
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              name={['settings', 'minAmount']}
+                              label={<span className="text-sm font-medium text-text-sub">门槛金额</span>}
+                              tooltip="0 代表无门槛"
+                              className="mb-0"
+                            >
+                              <InputNumber
+                                min={0}
+                                step={1}
+                                precision={2}
+                                className="!w-full h-10 rounded-lg text-sm"
+                                placeholder="0.00"
+                                addonAfter="元"
+                              />
+                            </Form.Item>
+                          </div>
+                        )}
+
+                        {selectedType === 'COUPON' && (
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <Form.Item
+                              name={['settings', 'discountAmount']}
+                              label={<span className="text-sm font-medium text-text-sub">优惠金额</span>}
+                              rules={[{ required: true, message: '请输入优惠金额' }]}
+                              className="mb-0"
+                            >
+                              <InputNumber
+                                min={0.01}
+                                step={1}
+                                precision={2}
+                                className="!w-full h-10 rounded-lg text-sm"
+                                placeholder="20"
+                                addonAfter="元"
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              name={['settings', 'minAmount']}
+                              label={<span className="text-sm font-medium text-text-sub">使用门槛</span>}
+                              rules={[{ required: true, message: '请输入使用门槛' }]}
+                              className="mb-0"
+                            >
+                              <InputNumber
+                                min={0.01}
+                                step={1}
+                                precision={2}
+                                className="!w-full h-10 rounded-lg text-sm"
+                                placeholder="100"
+                                addonAfter="元"
+                              />
+                            </Form.Item>
+                          </div>
+                        )}
+
+                        {selectedType === 'POINTS' && (
+                          <Form.Item
+                            name={['settings', 'pointsMultiplier']}
+                            label={<span className="text-sm font-medium text-text-sub">积分倍率</span>}
+                            tooltip="例如 2 代表双倍积分"
+                            rules={[{ required: true, message: '请输入积分倍率' }]}
+                            className="mb-0"
+                          >
+                            <InputNumber
+                              min={1}
+                              max={10}
+                              step={0.5}
+                              precision={1}
+                              className="!w-full h-10 rounded-lg text-sm"
+                              placeholder="2"
+                              addonAfter="倍"
+                            />
+                          </Form.Item>
+                        )}
+
+                        {selectedType === 'SPECIAL' && (
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            <Form.Item
+                              name={['settings', 'specialPrice']}
+                              label={<span className="text-sm font-medium text-text-sub">特惠价</span>}
+                              rules={[{ required: true, message: '请输入特惠价' }]}
+                              className="mb-0"
+                            >
+                              <InputNumber
+                                min={0.01}
+                                step={1}
+                                precision={2}
+                                className="!w-full h-10 rounded-lg text-sm"
+                                placeholder="88"
+                                addonAfter="元"
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              name={['settings', 'originalPrice']}
+                              label={<span className="text-sm font-medium text-text-sub">原价</span>}
+                              className="mb-0"
+                            >
+                              <InputNumber
+                                min={0.01}
+                                step={1}
+                                precision={2}
+                                className="!w-full h-10 rounded-lg text-sm"
+                                placeholder="108"
+                                addonAfter="元"
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              name={['settings', 'stockLimit']}
+                              label={<span className="text-sm font-medium text-text-sub">限量份数</span>}
+                              className="mb-0"
+                            >
+                              <InputNumber
+                                min={1}
+                                step={1}
+                                precision={0}
+                                className="!w-full h-10 rounded-lg text-sm"
+                                placeholder="50"
+                                addonAfter="份"
+                              />
+                            </Form.Item>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.2fr_0.9fr_0.9fr]">
-                      <div className="rounded-xl border border-border-dark bg-card-bg p-3">
-                        <div className="mb-2 text-[11px] uppercase tracking-wider text-text-weak">日期范围</div>
-                        <RangePicker
-                          locale={rangePickerLocale}
-                          value={activityDateRange}
-                          onChange={handleDateRangeChange}
-                          disabledDate={(current) => {
-                            if (current.isBefore(getMinimumStartDateTime().startOf('day'), 'day')) return true;
-                            if (minimumEndDateTime && activityDateRange[1] && current.isSame(activityDateRange[1], 'day')) {
-                              return false;
-                            }
-                            return false;
-                          }}
-                          placeholder={['开始日期', '结束日期']}
-                          className="xunye-picker !w-full"
-                          popupStyle={{ backgroundColor: '#1A1A1F', border: '1px solid #2A2A31' }}
-                        />
+                </div>}
+
+                {/* 活动状态设置 (编辑时可见) */}
+                {editingItem ? (
+                  <div className="group relative overflow-hidden rounded-xl border border-border-dark bg-gradient-to-br from-card-bg to-page-bg/60 p-4 transition-all duration-300 hover:border-brand-gold/30 hover:shadow-lg hover:shadow-brand-gold/5">
+                    <div className="relative">
+                      <div className="mb-3 flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-brand-gold"></div>
+                        <h3 className="text-base font-semibold uppercase tracking-widest text-brand-gold">活动状态</h3>
+                        <div className="h-px flex-1 bg-gradient-to-r from-brand-gold/30 to-transparent"></div>
                       </div>
-                      <LoopTimeInput
-                        label="开始时间"
-                        value={getTimeParts(activityDateRange[0])}
-                        onChange={(nextTime) => handleTimeChange(0, nextTime)}
-                        disabledOptions={startTimeDisabledOptions}
-                      />
-                      <LoopTimeInput
-                        label="结束时间"
-                        value={getTimeParts(activityDateRange[1])}
-                        onChange={(nextTime) => handleTimeChange(1, nextTime)}
-                        disabledOptions={endTimeDisabledOptions}
-                      />
+                      <Form.Item
+                        name="status"
+                        label={<span className="text-sm font-medium text-text-sub">活动状态</span>}
+                        className="mb-0"
+                      >
+                        <Select
+                          options={STATUS_OPTIONS}
+                          {...darkSelectProps}
+                          className="h-10"
+                        />
+                      </Form.Item>
+                    </div>
+                  </div>
+                ) : false && (
+                  <div className="flex items-center rounded-xl border border-brand-gold/25 bg-brand-gold/5 px-4 py-3.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-gold/20 shrink-0">
+                      <Sparkles size={14} className="text-brand-gold animate-pulse" />
+                    </div>
+                    <div className="ml-3">
+                      <div className="text-xs font-bold text-text-main">新建活动默认为草稿</div>
+                      <div className="text-[10px] text-text-weak mt-0.5">保存后可在列表中修改状态为“进行中”</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column - Live Preview & Validity Time (40% width) */}
+              <div className="space-y-3 md:col-span-5">
+
+                {/* 微信小程序端卡片实时预览 */}
+                <div className="rounded-xl border border-border-dark bg-card-bg/40 p-3 relative overflow-hidden">
+                  <div className="absolute right-0 top-0 h-24 w-24 bg-brand-gold/5 blur-2xl"></div>
+                  <div className="relative">
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-brand-gold flex items-center gap-1.5">
+                      <Sparkles size={11} className="text-brand-gold" />
+                      <span>手机端显示预览</span>
+                    </div>
+                    <MiniAppPreview
+                      title={watchedTitle}
+                      type={watchedType}
+                      settings={watchedSettings}
+                      description={watchedDescription}
+                      startDate={activityDateRange[0]}
+                      endDate={activityDateRange[1]}
+                    />
                   </div>
                 </div>
-              </Form>
+
+                {/* 生效时间设置 */}
+                {false && <div className="group relative overflow-hidden rounded-xl border border-border-dark bg-gradient-to-br from-card-bg to-page-bg/60 p-4 transition-all duration-300 hover:border-brand-gold/30 hover:shadow-lg hover:shadow-brand-gold/5">
+                  <div className="absolute right-0 bottom-0 h-32 w-32 bg-brand-gold/5 blur-3xl"></div>
+                  <div className="relative">
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-brand-gold"></div>
+                      <h3 className="text-base font-semibold uppercase tracking-widest text-brand-gold">生效时间</h3>
+                      <div className="h-px flex-1 bg-gradient-to-r from-brand-gold/30 to-transparent"></div>
+                    </div>
+
+                    {/* 快捷一键设置 */}
+                    <div className="mb-2">
+                      <div className="mb-1.5 hidden text-[10px] font-semibold uppercase tracking-widest text-text-weak xl:block">
+                        快捷一键设置
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: '1小时', value: '1h' },
+                          { label: '24小时', value: '24h' },
+                          { label: '3天', value: '3d' },
+                          { label: '7天', value: '7d' },
+                        ].map((preset) => {
+                          const isActive = activePreset === preset.value;
+                          return (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              onClick={() => applyPreset(preset.value as any)}
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold tracking-wider transition-all duration-200 cursor-pointer select-none ${
+                                isActive
+                                  ? 'bg-brand-gold text-page-bg font-bold shadow-md shadow-brand-gold/20'
+                                  : 'border border-border-dark text-text-sub bg-[#111114] hover:border-brand-gold/40 hover:text-brand-gold'
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold tracking-wider border select-none ${
+                            !activePreset
+                              ? 'border-brand-gold/30 bg-brand-gold/5 text-brand-gold'
+                              : 'border-border-dark text-text-weak'
+                          }`}
+                          disabled
+                        >
+                          自定义
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 精准自定义细调 */}
+                    <div className="bg-[#111114] border border-border-dark/60 rounded-xl p-2.5">
+                      <div className="grid grid-cols-2 gap-2 relative">
+                        {/* Middle separator line */}
+                        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-border-dark/40 -translate-x-1/2 hidden sm:block"></div>
+
+                        {/* 开始日期时间 */}
+                        <div className="space-y-2">
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Calendar size={12} className="text-brand-gold" />
+                              <span className="text-[10px] font-semibold text-text-sub uppercase tracking-wider">开始日期</span>
+                            </div>
+                            <DatePicker
+                              format="YYYY-MM-DD"
+                              locale={rangePickerLocale}
+                              value={activityDateRange[0]}
+                              onChange={(newDate) => {
+                                if (!newDate) {
+                                  handleStartDateChange(null);
+                                  return;
+                                }
+                                const current = activityDateRange[0] || dayjs();
+                                const nextDate = newDate
+                                  .hour(current.hour())
+                                  .minute(current.minute())
+                                  .second(current.second())
+                                  .millisecond(0);
+                                handleStartDateChange(nextDate);
+                              }}
+                              disabledDate={(current) => current && current.isBefore(dayjs().startOf('day'))}
+                              className="xunye-picker w-full h-9 rounded-lg text-xs"
+                              placeholder="选择开始日期"
+                              popupStyle={{ backgroundColor: '#1A1A1F', border: '1px solid #2A2A31' }}
+                            />
+                          </div>
+
+                          {activityDateRange[0] && (
+                            <LoopTimePicker
+                              label="开始时间微调"
+                              value={activityDateRange[0]}
+                              onChange={handleStartDateChange}
+                              compact
+                            />
+                          )}
+                        </div>
+
+                        {/* 结束日期时间 */}
+                        <div className="space-y-2">
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Clock size={12} className="text-brand-gold" />
+                              <span className="text-[10px] font-semibold text-text-sub uppercase tracking-wider">结束日期</span>
+                            </div>
+                            <DatePicker
+                              format="YYYY-MM-DD"
+                              locale={rangePickerLocale}
+                              value={activityDateRange[1]}
+                              onChange={(newDate) => {
+                                if (!newDate) {
+                                  handleEndDateChange(null);
+                                  return;
+                                }
+                                const current = activityDateRange[1] || dayjs();
+                                const nextDate = newDate
+                                  .hour(current.hour())
+                                  .minute(current.minute())
+                                  .second(current.second())
+                                  .millisecond(0);
+                                handleEndDateChange(nextDate);
+                              }}
+                              disabledDate={(current) => {
+                                if (!activityDateRange[0]) return false;
+                                return current && current.isBefore(activityDateRange[0].startOf('day'));
+                              }}
+                              className="xunye-picker w-full h-9 rounded-lg text-xs"
+                              placeholder="选择结束日期"
+                              popupStyle={{ backgroundColor: '#1A1A1F', border: '1px solid #2A2A31' }}
+                            />
+                          </div>
+
+                          {activityDateRange[1] && (
+                            <LoopTimePicker
+                              label="结束时间微调"
+                              value={activityDateRange[1]}
+                              onChange={handleEndDateChange}
+                              compact
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 活动时长预览小字 */}
+                    <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px] text-text-weak bg-[#111114] border border-border-dark/40 rounded-lg p-1.5 font-mono">
+                      <span>已选时长：{activityDurationPreview}</span>
+                      <span className="max-w-[170px] truncate text-right text-brand-gold/60">{activityTimeDisplay}</span>
+                    </div>
+
+                  </div>
+                </div>}
+
+              </div>
+
             </div>
-            <div className="flex items-center justify-end gap-3 border-t border-border-dark px-5 py-3.5">
-              <button
-                type="button"
-                onClick={closeEditorPanel}
-                className="h-10 rounded-lg border border-border-dark px-5 text-sm text-text-sub transition-colors hover:border-text-sub hover:text-text-main"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="h-10 rounded-lg bg-brand-gold px-5 text-sm font-semibold text-page-bg transition-colors hover:bg-brand-gold/90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? '保存中...' : (editingItem ? '保存' : '新增')}
-              </button>
-            </div>
+          </Form>
+
+          {/* 底部操作按钮 */}
+          <div className="mt-2 flex h-11 shrink-0 items-center justify-end gap-2 border-t border-brand-gold/20 pt-2">
+            <button
+              type="button"
+              onClick={closeEditorPanel}
+              className="group flex h-9 items-center gap-2 rounded-lg border border-border-dark bg-transparent px-5 text-sm font-medium text-text-sub transition-all duration-300 hover:border-brand-gold/50 hover:bg-brand-gold/5 hover:text-text-main"
+            >
+              <X size={16} className="transition-transform duration-300 group-hover:rotate-90" />
+              <span>取消</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="flex h-9 items-center gap-2 rounded-lg bg-gradient-to-r from-brand-gold to-brand-gold/90 px-6 text-sm font-bold text-page-bg shadow-lg shadow-brand-gold/20 transition-all duration-300 hover:shadow-xl hover:shadow-brand-gold/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            >
+              {submitting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-page-bg border-t-transparent"></div>
+                  <span>保存中...</span>
+                </>
+              ) : (
+                <>
+                  <Plus size={16} />
+                  <span>{editingItem ? '保存修改' : '创建活动'}</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
+      <Modal
+        open={!!configPanel}
+        onCancel={() => setConfigPanel(null)}
+        footer={null}
+        width={configPanel === 'time' ? 760 : 820}
+        rootClassName="xunye-config-modal"
+        styles={activityModalStyles}
+        title={
+          <span className="text-brand-gold font-serif tracking-wider">
+            {configPanel === 'rules' ? '规则设置' : configPanel === 'time' ? '生效时间' : '活动范围'}
+          </span>
+        }
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          component={false}
+          onValuesChange={(changedValues) => {
+            if (changedValues.type) {
+              handleTypeChange(changedValues.type);
+            }
+          }}
+        >
+          {configPanel === 'rules' && (
+          <div className="space-y-4">
+            <Form.Item
+              name="type"
+              label={<span className="text-sm font-medium text-text-sub">活动类型</span>}
+              rules={[{ required: true, message: '请选择活动类型' }]}
+              className="mb-0"
+            >
+              <ActivityTypeGrid />
+            </Form.Item>
+            <div className="rounded-xl border border-border-dark/50 bg-[#111114] p-4">
+              {selectedType === 'DISCOUNT' && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Form.Item name={['settings', 'discountRate']} label={<span className="text-sm font-medium text-text-sub">折扣力度</span>} rules={[{ required: true, message: '请输入折扣力度' }]} className="mb-0">
+                    <InputNumber min={0.1} max={9.9} step={0.1} precision={1} className="!w-full h-10 rounded-lg text-sm" placeholder="8.8" addonAfter="折" />
+                  </Form.Item>
+                  <Form.Item name={['settings', 'minAmount']} label={<span className="text-sm font-medium text-text-sub">门槛金额</span>} className="mb-0">
+                    <InputNumber min={0} step={1} precision={2} className="!w-full h-10 rounded-lg text-sm" placeholder="0.00" addonAfter="元" />
+                  </Form.Item>
+                </div>
+              )}
+              {selectedType === 'COUPON' && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Form.Item name={['settings', 'discountAmount']} label={<span className="text-sm font-medium text-text-sub">优惠金额</span>} rules={[{ required: true, message: '请输入优惠金额' }]} className="mb-0">
+                    <InputNumber min={0.01} step={1} precision={2} className="!w-full h-10 rounded-lg text-sm" placeholder="20" addonAfter="元" />
+                  </Form.Item>
+                  <Form.Item name={['settings', 'minAmount']} label={<span className="text-sm font-medium text-text-sub">使用门槛</span>} rules={[{ required: true, message: '请输入使用门槛' }]} className="mb-0">
+                    <InputNumber min={0.01} step={1} precision={2} className="!w-full h-10 rounded-lg text-sm" placeholder="100" addonAfter="元" />
+                  </Form.Item>
+                </div>
+              )}
+              {selectedType === 'POINTS' && (
+                <Form.Item name={['settings', 'pointsMultiplier']} label={<span className="text-sm font-medium text-text-sub">积分倍率</span>} rules={[{ required: true, message: '请输入积分倍率' }]} className="mb-0">
+                  <InputNumber min={1} max={10} step={0.5} precision={1} className="!w-full h-10 rounded-lg text-sm" placeholder="2" addonAfter="倍" />
+                </Form.Item>
+              )}
+              {selectedType === 'SPECIAL' && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <Form.Item name={['settings', 'specialPrice']} label={<span className="text-sm font-medium text-text-sub">特惠价</span>} rules={[{ required: true, message: '请输入特惠价' }]} className="mb-0">
+                    <InputNumber min={0.01} step={1} precision={2} className="!w-full h-10 rounded-lg text-sm" placeholder="88" addonAfter="元" />
+                  </Form.Item>
+                  <Form.Item name={['settings', 'originalPrice']} label={<span className="text-sm font-medium text-text-sub">原价</span>} className="mb-0">
+                    <InputNumber min={0.01} step={1} precision={2} className="!w-full h-10 rounded-lg text-sm" placeholder="108" addonAfter="元" />
+                  </Form.Item>
+                  <Form.Item name={['settings', 'stockLimit']} label={<span className="text-sm font-medium text-text-sub">限量份数</span>} className="mb-0">
+                    <InputNumber min={1} step={1} precision={0} className="!w-full h-10 rounded-lg text-sm" placeholder="50" addonAfter="份" />
+                  </Form.Item>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <button type="button" onClick={() => setConfigPanel(null)} className="h-9 rounded-lg bg-brand-gold px-5 text-sm font-bold text-page-bg">完成</button>
+            </div>
+          </div>
+        )}
+          {configPanel === 'time' && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {[{ label: '1小时', value: '1h' }, { label: '24小时', value: '24h' }, { label: '3天', value: '3d' }, { label: '7天', value: '7d' }].map((preset) => (
+                <button key={preset.value} type="button" onClick={() => applyPreset(preset.value as any)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${activePreset === preset.value ? 'bg-brand-gold text-page-bg' : 'border border-border-dark text-text-sub'}`}>
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <DatePicker format="YYYY-MM-DD" locale={rangePickerLocale} value={activityDateRange[0]} onChange={(newDate) => newDate && handleStartDateChange(newDate.hour(activityDateRange[0]?.hour() ?? dayjs().hour()).minute(activityDateRange[0]?.minute() ?? dayjs().minute()).second(activityDateRange[0]?.second() ?? 0).millisecond(0))} disabledDate={(current) => current && current.isBefore(dayjs().startOf('day'))} className="xunye-picker w-full h-10 rounded-lg text-xs" />
+              <DatePicker format="YYYY-MM-DD" locale={rangePickerLocale} value={activityDateRange[1]} onChange={(newDate) => newDate && handleEndDateChange(newDate.hour(activityDateRange[1]?.hour() ?? dayjs().hour()).minute(activityDateRange[1]?.minute() ?? dayjs().minute()).second(activityDateRange[1]?.second() ?? 0).millisecond(0))} className="xunye-picker w-full h-10 rounded-lg text-xs" />
+              <LoopTimePicker label="开始时间微调" value={activityDateRange[0]} onChange={handleStartDateChange} />
+              <LoopTimePicker label="结束时间微调" value={activityDateRange[1]} onChange={handleEndDateChange} />
+            </div>
+            <div className="rounded-lg border border-border-dark bg-[#111114] p-3 text-xs text-text-sub">{activityTimeDisplay}</div>
+            <div className="flex justify-end">
+              <button type="button" onClick={() => setConfigPanel(null)} className="h-9 rounded-lg bg-brand-gold px-5 text-sm font-bold text-page-bg">完成</button>
+            </div>
+          </div>
+        )}
+          {configPanel === 'scope' && (
+            <div className="space-y-4">
+              {/* Product Range Selection */}
+              <div className="rounded-xl border border-border-dark bg-[#111114] p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-brand-gold"></div>
+                  <span className="text-xs font-bold uppercase tracking-widest text-brand-gold">商品活动范围</span>
+                </div>
+                
+                <Form.Item name={['settings', 'scopeProductType']} className="mb-0">
+                  <Select
+                    {...darkSelectProps}
+                    options={[
+                      { label: '全部商品参与', value: 'ALL' },
+                      { label: '指定分类参与', value: 'CATEGORY' },
+                      { label: '指定商品参与', value: 'PRODUCT' }
+                    ]}
+                  />
+                </Form.Item>
+
+                {watchedScopeProductType === 'CATEGORY' && (
+                  <div className="space-y-1.5 animate-fadeIn">
+                    <div className="text-[10px] text-text-weak font-semibold uppercase tracking-wider">请选择参与活动的商品分类</div>
+                    <Form.Item name={['settings', 'categoryIds']} className="mb-0">
+                      <Select
+                        {...darkSelectProps}
+                        mode="multiple"
+                        placeholder="选择商品分类（可多选）"
+                        allowClear
+                        options={categories.map(c => ({ label: c.name, value: c.id }))}
+                      />
+                    </Form.Item>
+                  </div>
+                )}
+
+                {watchedScopeProductType === 'PRODUCT' && (
+                  <div className="space-y-1.5 animate-fadeIn">
+                    <div className="text-[10px] text-text-weak font-semibold uppercase tracking-wider">请选择参与活动的具体商品</div>
+                    <Form.Item name={['settings', 'productIds']} className="mb-0">
+                      <Select
+                        {...darkSelectProps}
+                        mode="multiple"
+                        placeholder="选择具体商品（可多选）"
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
+                        options={products.map(p => ({
+                          label: `${p.name} (${p.category} - 售价¥${p.price})`,
+                          value: p.id
+                        }))}
+                      />
+                    </Form.Item>
+                  </div>
+                )}
+              </div>
+
+              {/* Table Area Range Selection */}
+              <div className="rounded-xl border border-border-dark bg-[#111114] p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-brand-gold"></div>
+                  <span className="text-xs font-bold uppercase tracking-widest text-brand-gold">桌台区域活动范围</span>
+                </div>
+
+                <Form.Item name={['settings', 'scopeTableType']} className="mb-0">
+                  <Select
+                    {...darkSelectProps}
+                    options={[
+                      { label: '全部区域参与', value: 'ALL' },
+                      { label: '指定区域参与', value: 'AREA' },
+                      { label: '指定桌台参与', value: 'TABLE' }
+                    ]}
+                  />
+                </Form.Item>
+
+                {watchedScopeTableType === 'AREA' && (
+                  <div className="space-y-1.5 animate-fadeIn">
+                    <div className="text-[10px] text-text-weak font-semibold uppercase tracking-wider">请选择参与活动的桌台区域</div>
+                    <Form.Item name={['settings', 'areaIds']} className="mb-0">
+                      <Select
+                        {...darkSelectProps}
+                        mode="multiple"
+                        placeholder="选择桌台区域（可多选）"
+                        allowClear
+                        options={areas.map(a => ({ label: a.name, value: a.id }))}
+                      />
+                    </Form.Item>
+                  </div>
+                )}
+
+                {watchedScopeTableType === 'TABLE' && (
+                  <div className="space-y-1.5 animate-fadeIn">
+                    <div className="text-[10px] text-text-weak font-semibold uppercase tracking-wider">请选择参与活动的具体桌台</div>
+                    <Form.Item name={['settings', 'tableIds']} className="mb-0">
+                      <Select
+                        {...darkSelectProps}
+                        mode="multiple"
+                        placeholder="选择具体桌台（可多选）"
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
+                        options={tables.map(t => ({
+                          label: `${t.name} (${t.areaName} - 容纳${t.capacity}人)`,
+                          value: t.id
+                        }))}
+                      />
+                    </Form.Item>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button type="button" onClick={() => setConfigPanel(null)} className="h-9 rounded-lg bg-brand-gold px-5 text-sm font-bold text-page-bg hover:brightness-110 transition-all">完成</button>
+              </div>
+            </div>
+          )}
+        </Form>
+      </Modal>
     </div>
   );
 }

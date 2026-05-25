@@ -180,12 +180,17 @@ function getActivityTypeColor(type: string) {
     </view>
 
     <!-- 活动专区 -->
-    <view v-if="activities.length > 0" class="section">
+    <view class="section">
       <view class="section-title">
         <uv-icon name="gift-fill" color="#d2a85f" size="18" /> 活动专区
       </view>
       <view v-if="activitiesLoading" class="recommend-loading">
         <uv-loading-icon mode="circle" color="#d2a85f" text="加载中" text-color="#8d929d" />
+      </view>
+      <view v-else-if="activities.length === 0" class="empty-state">
+        <uv-icon name="inbox" color="#8d929d" size="48" />
+        <text class="empty-text">暂无活动</text>
+        <text class="empty-hint">敬请期待更多精彩活动</text>
       </view>
       <view v-else class="activities-list">
         <view v-for="activity in activities" :key="activity.id" class="activity-card">
@@ -406,6 +411,27 @@ function getActivityTypeColor(type: string) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background: rgba(21, 23, 27, 0.94);
+  border: 1px solid var(--xunye-line);
+  border-radius: 16px;
+}
+.empty-text {
+  margin-top: 16px;
+  color: #8d929d;
+  font-size: 15px;
+  font-weight: 600;
+}
+.empty-hint {
+  margin-top: 6px;
+  color: #5a5e67;
+  font-size: 12px;
 }
 .activity-card {
   padding: 16px;
