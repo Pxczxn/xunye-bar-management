@@ -195,8 +195,22 @@ async function retryConfirm() {
         <view class="info-line">
           <text>商品原价</text><text>¥{{ displayOrder.originalAmount.toFixed(2) }}</text>
         </view>
-        <view v-if="displayOrder.discountAmount" class="info-line">
-          <text>{{ displayOrder.coupon?.title || '优惠券' }}</text><text class="gold">-¥{{ displayOrder.discountAmount.toFixed(2) }}</text>
+        <view v-if="displayOrder.activityDiscountAmount && displayOrder.activityDiscountAmount > 0" class="info-line discount-line">
+          <text>
+            <text class="discount-icon">🎉</text>
+            {{ displayOrder.activityName || '会员活动' }}
+          </text>
+          <text class="gold">-¥{{ displayOrder.activityDiscountAmount.toFixed(2) }}</text>
+        </view>
+        <view v-if="displayOrder.couponDiscountAmount && displayOrder.couponDiscountAmount > 0" class="info-line discount-line">
+          <text>
+            <text class="discount-icon">🎫</text>
+            {{ displayOrder.coupon?.title || '优惠券' }}
+          </text>
+          <text class="gold">-¥{{ displayOrder.couponDiscountAmount.toFixed(2) }}</text>
+        </view>
+        <view v-if="displayOrder.discountAmount && displayOrder.discountAmount > 0 && !displayOrder.activityDiscountAmount && !displayOrder.couponDiscountAmount" class="info-line discount-line">
+          <text>优惠金额</text><text class="gold">-¥{{ displayOrder.discountAmount.toFixed(2) }}</text>
         </view>
         <view class="info-line total-line">
           <text>支付金额</text><text class="gold">¥{{ displayOrder.totalAmount.toFixed(2) }}</text>
@@ -372,6 +386,13 @@ async function retryConfirm() {
   justify-content: space-between;
   padding: 8px 0;
   font-size: 14px;
+}
+.discount-line {
+  color: var(--xunye-gold);
+}
+.discount-icon {
+  font-size: 16px;
+  margin-right: 4px;
 }
 .total-line {
   border-top: 1px solid var(--xunye-line);

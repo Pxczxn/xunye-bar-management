@@ -39,6 +39,9 @@ export interface OrderSnapshot {
   items: CartItem[]
   originalAmount: number
   discountAmount: number
+  activityDiscountAmount?: number
+  couponDiscountAmount?: number
+  activityName?: string
   totalAmount: number
   coupon: CouponInfo | null
   remark: string

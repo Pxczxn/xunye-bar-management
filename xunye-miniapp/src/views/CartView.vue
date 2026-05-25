@@ -131,6 +131,9 @@ async function submitOrder() {
       items: store.cartItems.map(item => ({ ...item })),
       originalAmount: Number(order.originalAmount || order.totalAmount),
       discountAmount: Number(order.discountAmount || 0),
+      activityDiscountAmount: Number(order.activityDiscountAmount || 0),
+      couponDiscountAmount: Number(order.couponDiscountAmount || 0),
+      activityName: order.activityName || null,
       totalAmount: Number(order.totalAmount),
       coupon: store.activeCoupon ? { ...store.activeCoupon } : null,
       remark: remark.value,
@@ -277,6 +280,34 @@ onMounted(async () => {
                 <text v-if="store.activeCoupon?.id === coupon.id">✓</text>
               </view>
             </view>
+          </view>
+        </view>
+      </view>
+      <!-- 价格明细面板 -->
+      <view class="panel">
+        <view class="panel-title">
+          价格明细
+        </view>
+        <view class="price-detail-list">
+          <view class="price-detail-row">
+            <text class="detail-label">商品原价</text>
+            <text class="detail-value">¥{{ store.totalAmount.toFixed(2) }}</text>
+          </view>
+          <view v-if="store.activeCoupon" class="price-detail-row discount-row">
+            <text class="detail-label">
+              <text class="discount-icon">🎫</text>
+              优惠券「{{ store.activeCoupon.title }}」
+            </text>
+            <text class="detail-value discount-value">-¥{{ store.discountAmount.toFixed(2) }}</text>
+          </view>
+          <view class="price-detail-hint">
+            <text class="hint-icon">💡</text>
+            <text class="hint-text">会员活动折扣将在提交订单后自动计算</text>
+          </view>
+          <view class="price-detail-divider" />
+          <view class="price-detail-row total-row">
+            <text class="detail-label bold">预估金额</text>
+            <text class="detail-value total-value">¥{{ store.payableAmount.toFixed(2) }}</text>
           </view>
         </view>
       </view>
@@ -494,5 +525,67 @@ onMounted(async () => {
   border-color: var(--xunye-gold);
   background: var(--xunye-gold);
   color: #111318;
+}
+.price-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.price-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.detail-label {
+  font-size: 14px;
+  color: #8d929d;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.detail-value {
+  font-size: 14px;
+  color: #f7f1e8;
+  font-weight: 600;
+}
+.discount-row .detail-label {
+  color: var(--xunye-gold);
+}
+.discount-icon {
+  font-size: 16px;
+}
+.discount-value {
+  color: var(--xunye-gold);
+}
+.price-detail-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(210, 168, 95, 0.08);
+  border-radius: 8px;
+  margin: 4px 0;
+}
+.hint-icon {
+  font-size: 14px;
+}
+.hint-text {
+  font-size: 12px;
+  color: #8d929d;
+  line-height: 1.4;
+}
+.price-detail-divider {
+  height: 1px;
+  background: var(--xunye-line);
+  margin: 4px 0;
+}
+.total-row .detail-label {
+  font-size: 15px;
+  color: #f7f1e8;
+}
+.total-row .detail-value {
+  font-size: 18px;
+  color: var(--xunye-gold);
+  font-weight: 800;
 }
 </style>

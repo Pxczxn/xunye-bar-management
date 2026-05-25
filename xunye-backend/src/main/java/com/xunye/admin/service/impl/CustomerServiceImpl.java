@@ -244,7 +244,9 @@ public class CustomerServiceImpl implements CustomerService {
         }
 
         // 计算活动折扣
-        BigDecimal activityDiscountAmount = calculateActivityDiscount(customer, table.getId(), productIds, totalAmount);
+        ActivityDiscountResult activityResult = calculateActivityDiscountWithName(customer, table.getId(), productIds, totalAmount);
+        BigDecimal activityDiscountAmount = activityResult.discountAmount;
+        String activityName = activityResult.activityName;
 
         // 计算优惠券折扣
         BigDecimal couponDiscountAmount = resolveDiscount(dto.getPhone(), dto.getCouponId(), totalAmount);
@@ -277,6 +279,9 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setTotalAmount(order.getTotalAmount());
         vo.setOriginalAmount(order.getOriginalAmount());
         vo.setDiscountAmount(order.getDiscountAmount());
+        vo.setActivityDiscountAmount(activityDiscountAmount);
+        vo.setCouponDiscountAmount(couponDiscountAmount);
+        vo.setActivityName(activityName);
         vo.setStatus(order.getStatus());
         return vo;
     }
@@ -1149,8 +1154,15 @@ public class CustomerServiceImpl implements CustomerService {
      * 计算活动折扣金额
      */
     private BigDecimal calculateActivityDiscount(Customer customer, Long tableId, Set<Long> productIds, BigDecimal totalAmount) {
+        return calculateActivityDiscountWithName(customer, tableId, productIds, totalAmount).discountAmount;
+    }
+
+    /**
+     * 计算活动折扣金额并返回活动名称
+     */
+    private ActivityDiscountResult calculateActivityDiscountWithName(Customer customer, Long tableId, Set<Long> productIds, BigDecimal totalAmount) {
         if (customer == null || totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            return BigDecimal.ZERO;
+            return new ActivityDiscountResult(BigDecimal.ZERO, null);
         }
 
         // 获取当前生效的活动
@@ -1167,11 +1179,11 @@ public class CustomerServiceImpl implements CustomerService {
             activities = memberActivityMapper.selectList(wrapper);
         } catch (Exception e) {
             log.warn("Failed to query member activities", e);
-            return BigDecimal.ZERO;
+            return new ActivityDiscountResult(BigDecimal.ZERO, null);
         }
 
         if (activities == null || activities.isEmpty()) {
-            return BigDecimal.ZERO;
+            return new ActivityDiscountResult(BigDecimal.ZERO, null);
         }
 
         // 查找适用的折扣活动
@@ -1203,14 +1215,21 @@ public class CustomerServiceImpl implements CustomerService {
                 // 折扣金额 = 原价 * (1 - 折扣率/10)
                 BigDecimal discountMultiplier = BigDecimal.ONE.subtract(discountRate.divide(BigDecimal.TEN, 4, java.math.RoundingMode.HALF_UP));
                 BigDecimal discountAmount = totalAmount.multiply(discountMultiplier).setScale(2, java.math.RoundingMode.HALF_UP);
-                log.info("Applied activity discount: activityId={}, discountRate={}, originalAmount={}, discountAmount={}",
-                        activity.getId(), discountRate, totalAmount, discountAmount);
-                return discountAmount;
+                log.info("Applied activity discount: activityId={}, activityName={}, discountRate={}, originalAmount={}, discountAmount={}",
+                        activity.getId(), activity.getTitle(), discountRate, totalAmount, discountAmount);
+                return new ActivityDiscountResult(discountAmount, activity.getTitle());
             }
         }
 
-        return BigDecimal.ZERO;
+        return new ActivityDiscountResult(BigDecimal.ZERO, null);
     }
+
+    /**
+     * 活动折扣结果
+     */
+    private record ActivityDiscountResult(BigDecimal discountAmount, String activityName) {
+    }
+
 
     /**
      * 检查活动是否适用于当前订单
