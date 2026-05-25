@@ -79,6 +79,11 @@ watch(showCartFloat, (newVal) => {
   }
 })
 
+// 监听页面切换，关闭购物车弹窗
+watch(activeView, () => {
+  cartExpanded.value = false
+})
+
 function toggleCartExpanded() {
   if (store.totalQty > 0) {
     cartExpanded.value = !cartExpanded.value
