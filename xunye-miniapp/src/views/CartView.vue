@@ -23,6 +23,24 @@ const mappedCoupons = computed(() => {
   }))
 })
 
+// 计算会员等级折扣
+const memberDiscount = computed(() => {
+  const memberLevel = customerProfileStore.profile.memberLevel
+  if (memberLevel === 'VIP') {
+    return store.totalAmount * 0.05 // 5% 折扣
+  } else if (memberLevel === 'SVIP') {
+    return store.totalAmount * 0.10 // 10% 折扣
+  }
+  return 0
+})
+
+const memberLevelName = computed(() => {
+  const memberLevel = customerProfileStore.profile.memberLevel
+  if (memberLevel === 'VIP') return 'VIP会员95折'
+  if (memberLevel === 'SVIP') return 'SVIP会员9折'
+  return ''
+})
+
 function getCouponAfterPrice(coupon: CustomerCouponVO) {
   return Math.max(0, store.totalAmount - coupon.discountAmount)
 }
@@ -295,6 +313,13 @@ onMounted(async () => {
             <text class="detail-label">商品原价</text>
             <text class="detail-value">¥{{ store.totalAmount.toFixed(2) }}</text>
           </view>
+          <view v-if="memberDiscount > 0" class="price-detail-row discount-row">
+            <text class="detail-label">
+              <text class="discount-icon">👑</text>
+              {{ memberLevelName }}
+            </text>
+            <text class="detail-value discount-value">-¥{{ memberDiscount.toFixed(2) }}</text>
+          </view>
           <view v-if="store.activeCoupon" class="price-detail-row discount-row">
             <text class="detail-label">
               <text class="discount-icon">🎫</text>
@@ -309,7 +334,7 @@ onMounted(async () => {
           <view class="price-detail-divider" />
           <view class="price-detail-row total-row">
             <text class="detail-label bold">预估金额</text>
-            <text class="detail-value total-value">¥{{ store.payableAmount.toFixed(2) }}</text>
+            <text class="detail-value total-value">¥{{ (store.payableAmount - memberDiscount).toFixed(2) }}</text>
           </view>
         </view>
       </view>
