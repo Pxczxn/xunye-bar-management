@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import type { CustomerProductVO } from '@/api/customer'
+import type { ActivityVO, CustomerProductVO } from '@/api/customer'
 import type { MenuProduct } from '@/store'
 import { computed, onMounted, ref } from 'vue'
-import { getShopInfo, listCustomerProducts } from '@/api/customer'
+import { getShopInfo, listActiveActivities, listCustomerProducts } from '@/api/customer'
 import { useShellState } from '@/composables/useShellState'
 import { useXunyeStore } from '@/store'
 import { getEnvBaseUrl } from '@/utils'
@@ -10,9 +10,14 @@ import { getEnvBaseUrl } from '@/utils'
 const store = useXunyeStore()
 const { push, goPage, goMenuProduct } = useShellState()
 const products = ref<MenuProduct[]>([])
+const activities = ref<ActivityVO[]>([])
 const loading = ref(false)
+const activitiesLoading = ref(false)
 const banners = ref<string[]>([])
 const bannerLoading = ref(true)
+const notice = ref('公告：今晚 21:00 爵士现场即将开始，敬请期待！特调买二送一。')
+const shopName = ref('寻野 XUNYE')
+const businessHours = ref('18:00 - 02:00')
 
 const baseUrl = getEnvBaseUrl()
 
@@ -21,7 +26,8 @@ const featuredProducts = computed(() => products.value.slice(0, 3))
 
 onMounted(() => {
   fetchFeaturedProducts()
-  fetchBanners()
+  fetchShopInfo()
+  fetchActivities()
 })
 
 function toMenuProduct(product: CustomerProductVO): MenuProduct {
@@ -42,14 +48,29 @@ async function fetchFeaturedProducts() {
   loading.value = false
 }
 
-async function fetchBanners() {
+async function fetchActivities() {
+  activitiesLoading.value = true
+  const list = await listActiveActivities().catch(() => [])
+  activities.value = list
+  activitiesLoading.value = false
+}
+
+async function fetchShopInfo() {
   bannerLoading.value = true
   const shop = await getShopInfo().catch(() => null)
-  if (shop?.bannerImages?.length) {
-    banners.value = shop.bannerImages.map((url) => {
-      if (url.startsWith('http')) return url
-      return baseUrl + url
-    })
+  if (shop) {
+    // 更新店铺信息
+    if (shop.name) shopName.value = shop.name
+    if (shop.businessHours) businessHours.value = shop.businessHours
+    if (shop.notice) notice.value = shop.notice
+
+    // 更新轮播图
+    if (shop.bannerImages?.length) {
+      banners.value = shop.bannerImages.map((url) => {
+        if (url.startsWith('http')) return url
+        return baseUrl + url
+      })
+    }
   }
   bannerLoading.value = false
 }
@@ -66,16 +87,36 @@ function openFeaturedProduct(index: number) {
     return
   goMenuProduct(product.id)
 }
+
+function getActivityTypeLabel(type: string) {
+  const typeMap: Record<string, string> = {
+    DISCOUNT: '折扣',
+    COUPON: '优惠券',
+    POINTS: '积分',
+    SPECIAL: '特惠',
+  }
+  return typeMap[type] || type
+}
+
+function getActivityTypeColor(type: string) {
+  const colorMap: Record<string, string> = {
+    DISCOUNT: '#d2a85f',
+    COUPON: '#ff6b6b',
+    POINTS: '#4ecdc4',
+    SPECIAL: '#ff9f43',
+  }
+  return colorMap[type] || '#d2a85f'
+}
 </script>
 
 <template>
   <view class="view view-scroll">
     <view class="brand-head">
       <view class="brand-title">
-        寻野 XUNYE
+        {{ shopName }}
       </view>
       <view class="muted small">
-        营业时间 18:00 - 02:00
+        营业时间 {{ businessHours }}
       </view>
     </view>
 
@@ -100,7 +141,7 @@ function openFeaturedProduct(index: number) {
 
     <view class="notice-pill">
       <uv-icon name="volume-fill" color="#d2a85f" size="18" />
-      <text class="notice-text">公告：今晚 21:00 爵士现场即将开始，敬请期待！特调买二送一。</text>
+      <text class="notice-text">{{ notice }}</text>
     </view>
 
     <view class="table-card">
@@ -135,6 +176,42 @@ function openFeaturedProduct(index: number) {
           <uv-icon name="scan" color="#6fa8ff" size="24" />
         </view>
         <view>扫码点单</view>
+      </view>
+    </view>
+
+    <!-- 活动专区 -->
+    <view v-if="activities.length > 0" class="section">
+      <view class="section-title">
+        <uv-icon name="gift-fill" color="#d2a85f" size="18" /> 活动专区
+      </view>
+      <view v-if="activitiesLoading" class="recommend-loading">
+        <uv-loading-icon mode="circle" color="#d2a85f" text="加载中" text-color="#8d929d" />
+      </view>
+      <view v-else class="activities-list">
+        <view v-for="activity in activities" :key="activity.id" class="activity-card">
+          <view class="activity-header">
+            <view class="activity-type-badge" :style="{ background: getActivityTypeColor(activity.type) + '20', color: getActivityTypeColor(activity.type) }">
+              {{ getActivityTypeLabel(activity.type) }}
+            </view>
+            <view class="activity-status">
+              进行中
+            </view>
+          </view>
+          <view class="activity-title">
+            {{ activity.title }}
+          </view>
+          <view v-if="activity.description" class="activity-desc">
+            {{ activity.description }}
+          </view>
+          <view class="activity-rule">
+            <uv-icon name="tags-fill" :color="getActivityTypeColor(activity.type)" size="14" />
+            <text>{{ activity.settingSummary }}</text>
+          </view>
+          <view class="activity-time">
+            <uv-icon name="clock" color="#8d929d" size="13" />
+            <text>{{ activity.startDate.slice(5, 16) }} ~ {{ activity.endDate.slice(5, 16) }}</text>
+          </view>
+        </view>
       </view>
     </view>
 
@@ -322,5 +399,68 @@ function openFeaturedProduct(index: number) {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* ========== Activities Section ========== */
+.activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.activity-card {
+  padding: 16px;
+  background: rgba(21, 23, 27, 0.94);
+  border: 1px solid var(--xunye-line);
+  border-radius: 16px;
+}
+.activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.activity-type-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.activity-status {
+  padding: 3px 8px;
+  background: rgba(76, 217, 100, 0.15);
+  border-radius: 999px;
+  color: #4cd964;
+  font-size: 11px;
+  font-weight: 600;
+}
+.activity-title {
+  margin-bottom: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.activity-desc {
+  margin-bottom: 10px;
+  color: #8d929d;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.activity-rule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: rgba(210, 168, 95, 0.08);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.activity-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #8d929d;
+  font-size: 12px;
 }
 </style>

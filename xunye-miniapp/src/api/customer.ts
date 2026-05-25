@@ -186,3 +186,23 @@ export interface ShopInfoVO {
 export function getShopInfo() {
   return http.get<ShopInfoVO>('/api/customer/shop/info')
 }
+
+export interface ActivityVO {
+  id: number
+  title: string
+  description: string
+  type: string
+  startDate: string
+  endDate: string
+  coverImage: string | null
+  settings: Record<string, any>
+  settingSummary: string
+  status: number
+  sort: number
+  createdAt: string
+  updatedAt: string
+}
+
+export function listActiveActivities() {
+  return http.get<ActivityVO[]>('/api/customer/activities')
+}
