@@ -1,4 +1,4 @@
-import { ConfigProvider, theme } from 'antd';
+import { ConfigProvider, theme, App as AntdApp } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import dayjs from 'dayjs';
 import zhCnDayjs from 'dayjs/esm/locale/zh-cn';
@@ -24,6 +24,12 @@ export default function App() {
           colorTextPlaceholder: '#6F6A63',
         },
         components: {
+          Button: {
+            colorPrimary: '#D6A85A',
+            colorPrimaryHover: '#C69A4D',
+            colorPrimaryActive: '#B88A40',
+            primaryColor: '#0B0B0F',
+          },
           Modal: {
             contentBg: '#1A1A1F',
             headerBg: '#1A1A1F',
@@ -37,7 +43,9 @@ export default function App() {
         }
       }}
     >
-      <RouterProvider router={router} />
+      <AntdApp>
+        <RouterProvider router={router} />
+      </AntdApp>
     </ConfigProvider>
   );
 }

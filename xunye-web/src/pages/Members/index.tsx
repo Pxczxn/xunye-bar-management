@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Modal, Select, message } from 'antd';
+import { Modal, Select, App } from 'antd';
 import { getCustomerMemberPage, getMemberLevels, updateMemberLevel } from '@/api/members';
 import type { CustomerMemberItem, MemberLevelItem } from '@/types/api';
 import { Search, RotateCcw, Crown } from 'lucide-react';
@@ -34,6 +34,7 @@ const modalStyles = {
 };
 
 export default function MembersPage() {
+  const { message } = App.useApp();
   const [data, setData] = useState<CustomerMemberItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, InputNumber, Switch, message, Tag, Popconfirm } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, Select, InputNumber, Switch, App, Tag, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import request from '@/api/request';
@@ -28,6 +28,7 @@ interface CouponTemplate {
 }
 
 const CouponTemplates: React.FC = () => {
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [dataSource, setDataSource] = useState<CouponTemplate[]>([]);
   const [total, setTotal] = useState(0);
@@ -48,8 +49,8 @@ const CouponTemplates: React.FC = () => {
       const response = await request.get('/api/admin/coupon-templates', {
         params: { pageNum, pageSize, keyword }
       });
-      setDataSource(response.data.records);
-      setTotal(response.data.total);
+      setDataSource(response.records);
+      setTotal(response.total);
     } catch (error) {
       message.error('加载失败');
     } finally {
@@ -66,7 +67,7 @@ const CouponTemplates: React.FC = () => {
   const handleEdit = async (record: CouponTemplate) => {
     try {
       const response = await request.get(`/api/admin/coupon-templates/${record.id}`);
-      form.setFieldsValue(response.data);
+      form.setFieldsValue(response);
       setEditingId(record.id);
       setModalVisible(true);
     } catch (error) {
@@ -269,7 +270,7 @@ const CouponTemplates: React.FC = () => {
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
         width={800}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

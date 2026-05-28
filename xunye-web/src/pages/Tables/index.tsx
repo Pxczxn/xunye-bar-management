@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Modal, Form, Input, Select, InputNumber, message, Popconfirm } from 'antd';
+import { Modal, Form, Input, Select, InputNumber, App, Popconfirm } from 'antd';
 import {
   getTableAreas,
   createTableArea,
@@ -72,6 +72,7 @@ const displayValue = (value: string | number | null | undefined) =>
   value !== null && value !== undefined && value !== '' ? String(value) : '-';
 
 export default function TablesPage() {
+  const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState<'tables' | 'areas'>('tables');
 
   const [areas, setAreas] = useState<TableArea[]>([]);

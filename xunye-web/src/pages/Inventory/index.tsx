@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Modal, Form, Input, Select, InputNumber, message } from 'antd';
+import { Modal, Form, Input, Select, InputNumber, App } from 'antd';
 import { getInventoryWarnings, getInventoryRecords, adjustInventory } from '@/api/inventory';
 import { getProductPage } from '@/api/product';
 import type {
@@ -37,6 +37,7 @@ const RECORD_TYPE_OPTIONS = [
 ];
 
 export default function InventoryPage() {
+  const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState<'warnings' | 'records'>('warnings');
   const [warnings, setWarnings] = useState<InventoryWarning[]>([]);
   const [warningsLoading, setWarningsLoading] = useState(true);

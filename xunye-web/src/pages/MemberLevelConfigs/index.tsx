@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, InputNumber, Switch, message, Tag, Popconfirm } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, InputNumber, Switch, App, Tag, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import request from '@/api/request';
@@ -23,6 +23,7 @@ interface MemberLevelConfig {
 }
 
 const MemberLevelConfigs: React.FC = () => {
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [dataSource, setDataSource] = useState<MemberLevelConfig[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -37,7 +38,7 @@ const MemberLevelConfigs: React.FC = () => {
     setLoading(true);
     try {
       const response = await request.get('/api/admin/member-level-configs');
-      setDataSource(response.data);
+      setDataSource(response);
     } catch (error) {
       message.error('加载失败');
     } finally {
@@ -55,8 +56,8 @@ const MemberLevelConfigs: React.FC = () => {
     try {
       const response = await request.get(`/api/admin/member-level-configs/${record.id}`);
       form.setFieldsValue({
-        ...response.data,
-        benefitsDescription: response.data.benefits?.description || '',
+        ...response,
+        benefitsDescription: response.benefits?.description || '',
       });
       setEditingId(record.id);
       setModalVisible(true);
@@ -235,7 +236,7 @@ const MemberLevelConfigs: React.FC = () => {
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
         width={700}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

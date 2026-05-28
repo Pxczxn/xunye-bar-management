@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Modal, Form, Input, Select, InputNumber, AutoComplete, message } from 'antd';
+import { Modal, Form, Input, Select, InputNumber, AutoComplete, App } from 'antd';
 import {
   getCategoryList,
   getProductPage,
@@ -64,6 +64,7 @@ function buildSpec(value: string | number, unit: string): string {
 }
 
 export default function ProductsPage() {
+  const { message } = App.useApp();
   const [data, setData] = useState<ProductItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);

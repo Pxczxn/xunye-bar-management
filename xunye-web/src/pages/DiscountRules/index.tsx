@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, InputNumber, Switch, message, Tag, Popconfirm } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, Select, InputNumber, Switch, App, Tag, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import request from '@/api/request';
@@ -22,6 +22,7 @@ interface DiscountRule {
 }
 
 const DiscountRules: React.FC = () => {
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [dataSource, setDataSource] = useState<DiscountRule[]>([]);
   const [total, setTotal] = useState(0);
@@ -42,8 +43,8 @@ const DiscountRules: React.FC = () => {
       const response = await request.get('/api/admin/discount-rules', {
         params: { pageNum, pageSize, keyword }
       });
-      setDataSource(response.data.records);
-      setTotal(response.data.total);
+      setDataSource(response.records);
+      setTotal(response.total);
     } catch (error) {
       message.error('加载失败');
     } finally {
@@ -60,7 +61,7 @@ const DiscountRules: React.FC = () => {
   const handleEdit = async (record: DiscountRule) => {
     try {
       const response = await request.get(`/api/admin/discount-rules/${record.id}`);
-      form.setFieldsValue(response.data);
+      form.setFieldsValue(response);
       setEditingId(record.id);
       setModalVisible(true);
     } catch (error) {
@@ -257,7 +258,7 @@ const DiscountRules: React.FC = () => {
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
         width={700}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Input, message } from 'antd';
+import { Input, App } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { getTablePage } from '@/api/table';
 import { getProductPage } from '@/api/product';
@@ -39,6 +39,7 @@ const TABLE_STATUS_MAP: Record<string, { label: string; color: string; bg: strin
 };
 
 export default function PosPage() {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const [tables, setTables] = useState<BarTable[]>([]);
   const [tablesLoading, setTablesLoading] = useState(false);

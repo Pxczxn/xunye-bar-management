@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Modal, Form, Input, InputNumber, Select, message } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, App } from 'antd';
 import {
   getCategoryList,
   createCategory,
@@ -13,6 +13,7 @@ import { Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
 import { darkSelectProps } from '@/constants/antdTheme';
 
 export default function CategoriesPage() {
+  const { message } = App.useApp();
   const [data, setData] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);

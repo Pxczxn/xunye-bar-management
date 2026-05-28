@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Modal, Form, Input, Select, message } from 'antd';
+import { Modal, Form, Input, Select, App } from 'antd';
 import {
   getStaffPage,
   createStaff,
@@ -39,6 +39,7 @@ const STATUS_MAP: Record<number, string> = {
 };
 
 export default function StaffPage() {
+  const { message } = App.useApp();
   const [data, setData] = useState<StaffItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);

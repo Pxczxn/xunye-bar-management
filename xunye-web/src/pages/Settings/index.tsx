@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Input, message, Modal, Tag, Switch, Select, Button, Spin, InputNumber, Upload,
+  Input, App, Modal, Tag, Switch, Select, Button, Spin, InputNumber, Upload,
 } from 'antd';
 import { getBrandList, createBrand, deleteBrand } from '@/api/brand';
 import {
@@ -127,6 +127,7 @@ const MENU_DISPLAY_OPTIONS = [
 ];
 
 export default function SettingsPage() {
+  const { message } = App.useApp();
   const [activeCategory, setActiveCategory] = useState('shop');
 
   // --- Product Config (Brands) ---

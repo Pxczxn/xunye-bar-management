@@ -1,0 +1,7 @@
+{
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "miniprogram-automator": "^0.12.1",
+    "playwright": "^1.60.0"
+  }
+}

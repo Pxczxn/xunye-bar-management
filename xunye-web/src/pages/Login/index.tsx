@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { FormEvent, useState } from 'react';
-import { message } from 'antd';
+import { App } from 'antd';
 import { login } from '@/api/auth';
 
 export default function LoginPage() {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const [username, setUsername] = useState(import.meta.env.DEV ? 'admin' : '');
   const [password, setPassword] = useState(import.meta.env.DEV ? '123456' : '');

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { message } from 'antd';
+import { App } from 'antd';
 import { ChefHat, Clock3, CheckCircle, RefreshCw, UtensilsCrossed } from 'lucide-react';
 import { finishOrder, getOrderPage, startMaking } from '@/api/order';
 import type { OrderPageVO, OrderQueryParams } from '@/types/api';
@@ -137,6 +137,7 @@ function OrderCard({
 }
 
 export default function Kitchen() {
+  const { message } = App.useApp();
   const [orders, setOrders] = useState<OrderPageVO[]>([]);
   const [loading, setLoading] = useState(false);
   const [operatingId, setOperatingId] = useState<number | null>(null);

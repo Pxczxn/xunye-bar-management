@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Modal, Form, Input, Select, DatePicker, InputNumber, message } from 'antd';
+import { Modal, Form, Input, Select, DatePicker, InputNumber, App } from 'antd';
 import datePickerZhCN from 'antd/es/date-picker/locale/zh_CN';
 import { getActivityPage, createActivity, updateActivity, deleteActivity } from '@/api/activities';
 import { getSimpleProducts, getCategoryList } from '@/api/product';
@@ -360,6 +360,7 @@ function LoopTimeInput({ label, value, onChange, disabledOptions }: LoopTimeInpu
 }
 
 export default function ActivitiesPage() {
+  const { message } = App.useApp();
   const [data, setData] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);

@@ -168,6 +168,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^15.2.10",
     "miniprogram-api-typings": "^4.1.0",
+    "miniprogram-automator": "^0.12.1",
     "miniprogram-ci": "^2.1.26",
     "openapi-ts-request": "^1.10.0",
     "picocolors": "^1.1.1",

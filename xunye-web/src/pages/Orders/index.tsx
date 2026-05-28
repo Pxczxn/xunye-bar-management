@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Select, Modal, message } from 'antd';
+import { Select, Modal, App } from 'antd';
 import { Search, RotateCcw, RefreshCw, Eye, CreditCard, XCircle, CheckCircle } from 'lucide-react';
 import { getOrderPage, getOrderDetail, payOrder, cancelOrder, finishOrder, startMaking } from '@/api/order';
 import type { OrderPageVO, OrderQueryParams } from '@/types/api';
@@ -35,6 +35,7 @@ const getSourceLabel = (source: string | null | undefined) => {
 };
 
 export default function Orders() {
+  const { message } = App.useApp();
   const [records, setRecords] = useState<OrderPageVO[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
