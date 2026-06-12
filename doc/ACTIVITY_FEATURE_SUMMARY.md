@@ -113,4 +113,5 @@ ADD COLUMN deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记(0=未�
 - `e7b5cb9` - fix: add settings column to member_activity table
 - `e9109bf` - fix: add deleted column to customer table
 - `e193a01` - feat: add activity display in miniapp home page
-11111
+1111111111
+2222222
